@@ -2,6 +2,17 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Flow from './workflow/Flow';
 import T2I from './t2i';
 import { createRoot } from 'react-dom/client';
+import { EnhancedApp } from './EnhancedApp';
+
+// 새로운 UI를 기본으로 사용
+const container = document.getElementById('root');
+if (container) {
+  const root = createRoot(container);
+  root.render(<EnhancedApp />);
+}
+
+// Classic UI 코드는 아래에 보존 (사용하지 않음)
+if (false) {
 
 declare global {
   interface Window {
@@ -510,5 +521,7 @@ const App: React.FC = () => {
 };
 
 createRoot(document.getElementById('root')!).render(<App />);
+
+} // Classic UI 종료
 
 
