@@ -30,9 +30,14 @@ const Flow: React.FC = () => {
     logRef.current && (logRef.current.value = '');
     const args: string[] = ['--task', task, '--size', size, '--ckpt_dir', ckpt, '--prompt', prompt];
     if (task !== 't2v-A14B' && image) { args.push('--image', image); }
-    if (useOffload) args.push('--offload_model', 'True');
+    // Always explicitly pass offload_model to prevent script default
+    args.push('--offload_model', useOffload ? 'True' : 'False');
     if (useConvertDtype) args.push('--convert_model_dtype');
     if (useT5Cpu) args.push('--t5_cpu');
+    // Add missing required parameters
+    args.push('--sample_guide_scale', '7.5');
+    args.push('--base_seed', '-1');
+    args.push('--sample_solver', 'dpm++');
 
     window.wanApi.onStdout((d) => appendLog(d));
     window.wanApi.onStderr((d) => appendLog(d));

@@ -123,7 +123,8 @@ const WANGenerationCore: React.FC = () => {
     if (task !== 't2v-A14B' && imagePath) {
       a.push('--image', imagePath);
     }
-    if (useOffload) a.push('--offload_model', 'True');
+    // Always explicitly pass offload_model to prevent script default
+    a.push('--offload_model', useOffload ? 'True' : 'False');
     if (useConvertDtype) a.push('--convert_model_dtype');
     if (useT5Cpu) a.push('--t5_cpu');
     const n = Math.max(1, Math.round((fps * lengthSec) / 4));
@@ -131,6 +132,10 @@ const WANGenerationCore: React.FC = () => {
     a.push('--frame_num', String(frameNum));
     a.push('--sample_steps', String(stepsState ?? (task.includes('ti2v') ? 50 : 40)));
     a.push('--fps_override', String(fps));
+    // Add missing required parameters
+    a.push('--sample_guide_scale', '7.5');
+    a.push('--base_seed', '-1');
+    a.push('--sample_solver', 'dpm++');
     return a;
   }, [task, size, ckpt, prompt, imagePath, useOffload, useConvertDtype, useT5Cpu, lengthSec, fps, stepsState]);
 

@@ -107,6 +107,7 @@ export const ImageToVideoView: React.FC = () => {
       '--fps_override', String(fps),
       '--base_seed', String(seed),
       '--sample_solver', 'dpm++',
+      '--sample_guide_scale', '7.5',  // Add missing parameter
     ];
     // Always explicitly pass offload_model to prevent script default
     a.push('--offload_model', useOffload ? 'True' : 'False');
