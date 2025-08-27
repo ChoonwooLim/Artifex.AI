@@ -5,7 +5,7 @@ import {
   Upload, Clock, Cpu, CheckCircle, AlertCircle,
   Settings, ChevronDown, ChevronUp, Film,
   Image as ImageIcon, Type, Download, Eye, 
-  Info, Sparkles, Wand2, Zap
+  Info, Sparkles, Wand2, Zap, ExternalLink
 } from 'lucide-react';
 import { theme } from '../styles/theme';
 import { Button } from '../components/Button';
@@ -953,6 +953,78 @@ export const TextImageToVideoView: React.FC = () => {
                     <span>TI2V-5B Processing</span>
                   </div>
                 )}
+              </motion.div>
+            )}
+
+            {/* Output Log */}
+            <div style={{ marginTop: theme.spacing.xl }}>
+              <h3 style={{
+                fontSize: theme.typography.fontSize.lg,
+                fontWeight: theme.typography.fontWeight.semibold,
+                marginBottom: theme.spacing.md,
+              }}>
+                Generation Log
+              </h3>
+              <textarea
+                ref={logRef}
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  padding: theme.spacing.md,
+                  background: theme.colors.backgroundSecondary,
+                  border: `1px solid ${theme.colors.border}`,
+                  borderRadius: theme.borderRadius.md,
+                  color: theme.colors.text,
+                  fontSize: theme.typography.fontSize.sm,
+                  fontFamily: theme.typography.fontFamilyMono,
+                  resize: 'vertical',
+                  outline: 'none',
+                }}
+                readOnly
+                placeholder="Waiting for generation to start..."
+              />
+            </div>
+
+            {/* Preview */}
+            {lastOutput && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  marginTop: theme.spacing.xl,
+                  padding: theme.spacing.lg,
+                  background: `linear-gradient(135deg, ${theme.colors.primary}20, ${theme.colors.secondary}20)`,
+                  borderRadius: theme.borderRadius.md,
+                  border: `1px solid ${theme.colors.primary}40`,
+                }}
+              >
+                <h4 style={{
+                  fontSize: theme.typography.fontSize.md,
+                  fontWeight: theme.typography.fontWeight.semibold,
+                  marginBottom: theme.spacing.md,
+                }}>
+                  Output Preview
+                </h4>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: theme.spacing.md,
+                  background: theme.colors.backgroundTertiary,
+                  borderRadius: theme.borderRadius.sm,
+                }}>
+                  <span style={{ fontSize: theme.typography.fontSize.sm, color: theme.colors.textSecondary }}>
+                    {lastOutput}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<ExternalLink size={16} />}
+                    onClick={() => window.wanApi.showInFolder(lastOutput)}
+                  >
+                    Show in Folder
+                  </Button>
+                </div>
               </motion.div>
             )}
           </Card>
