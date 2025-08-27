@@ -49,7 +49,7 @@ type RunArgs = {
   cwd?: string;
 };
 
-ipcMain.handle('job:run', async (_evt, payload: RunArgs) => {
+ipcMain.handle('wan:run', async (_evt, payload: RunArgs) => {
   if (currentJob) {
     return { ok: false, message: 'A job is already running' };
   }
@@ -70,13 +70,13 @@ ipcMain.handle('job:run', async (_evt, payload: RunArgs) => {
     currentJob = child;
 
     child.stdout.on('data', (data) => {
-      mainWindow?.webContents.send('job:stdout', data.toString());
+      mainWindow?.webContents.send('wan:stdout', data.toString());
     });
     child.stderr.on('data', (data) => {
-      mainWindow?.webContents.send('job:stderr', data.toString());
+      mainWindow?.webContents.send('wan:stderr', data.toString());
     });
     child.on('close', (code) => {
-      mainWindow?.webContents.send('job:closed', code);
+      mainWindow?.webContents.send('wan:closed', code);
       currentJob = null;
     });
     return { ok: true };
@@ -85,7 +85,7 @@ ipcMain.handle('job:run', async (_evt, payload: RunArgs) => {
   }
 });
 
-ipcMain.handle('job:cancel', async () => {
+ipcMain.handle('wan:cancel', async () => {
   if (!currentJob) return { ok: false, message: 'No running job' };
   try {
     currentJob.kill('SIGTERM');
@@ -97,12 +97,12 @@ ipcMain.handle('job:cancel', async () => {
 });
 
 // file/folder dialogs
-ipcMain.handle('dialog:openFile', async (_e, options: { filters?: Electron.FileFilter[] }) => {
+ipcMain.handle('wan:openFile', async (_e, options: { filters?: Electron.FileFilter[] }) => {
   const res = await dialog.showOpenDialog({ properties: ['openFile'], filters: options?.filters });
   if (res.canceled || res.filePaths.length === 0) return null;
   return res.filePaths[0];
 });
-ipcMain.handle('dialog:openFolder', async () => {
+ipcMain.handle('wan:openFolder', async () => {
   const res = await dialog.showOpenDialog({ properties: ['openDirectory'] });
   if (res.canceled || res.filePaths.length === 0) return null;
   return res.filePaths[0];
@@ -113,7 +113,7 @@ const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 function ensureSettingsDir() {
   mkdirSync(app.getPath('userData'), { recursive: true });
 }
-ipcMain.handle('settings:get', async () => {
+ipcMain.handle('wan:getSettings', async () => {
   try {
     const txt = readFileSync(settingsPath, 'utf-8');
     return JSON.parse(txt);
@@ -121,7 +121,7 @@ ipcMain.handle('settings:get', async () => {
     return {};
   }
 });
-ipcMain.handle('settings:set', async (_e, data: any) => {
+ipcMain.handle('wan:setSettings', async (_e, data: any) => {
   try {
     ensureSettingsDir();
     writeFileSync(settingsPath, JSON.stringify(data, null, 2), 'utf-8');
@@ -169,7 +169,7 @@ function listSubdirs(root: string): string[] {
   }
 }
 
-ipcMain.handle('ckpt:suggest', async (_e, task: string) => {
+ipcMain.handle('wan:suggestCkpt', async (_e, task: string) => {
   const roots = Array.from(new Set([
     path.resolve(process.cwd(), '..'),
     path.resolve(process.cwd(), '../..'),
@@ -223,7 +223,7 @@ ipcMain.handle('ckpt:suggest', async (_e, task: string) => {
 });
 
 // image validate
-ipcMain.handle('image:validate', async (_e, imagePath: string) => {
+ipcMain.handle('wan:validateImage', async (_e, imagePath: string) => {
   try {
     if (!imagePath) return { ok: false, message: 'Empty path' };
     if (!existsSync(imagePath)) return { ok: false, message: 'File does not exist' };
@@ -249,9 +249,9 @@ function whichPythonCandidates(): string[] {
   return Array.from(cands);
 }
 
-ipcMain.handle('python:suggest', async () => whichPythonCandidates());
+ipcMain.handle('wan:suggestPython', async () => whichPythonCandidates());
 
-ipcMain.handle('python:validate', async (_e, pythonPath: string) => {
+ipcMain.handle('wan:validatePython', async (_e, pythonPath: string) => {
   try {
     const version = execFileSync(pythonPath, ['-V'], { encoding: 'utf-8' }).trim();
     let torch = 'missing';
@@ -310,18 +310,18 @@ function findGenerateScripts(): string[] {
   return Array.from(results);
 }
 
-ipcMain.handle('script:suggest', async () => findGenerateScripts());
+ipcMain.handle('wan:suggestScript', async () => findGenerateScripts());
 
 // open/show file or folder
-ipcMain.handle('fs:showInFolder', async (_e, filePath: string) => {
+ipcMain.handle('wan:showInFolder', async (_e, filePath: string) => {
   try { shell.showItemInFolder(filePath); return { ok: true }; } catch (e: any) { return { ok: false, message: e?.message || String(e) }; }
 });
-ipcMain.handle('fs:openPath', async (_e, targetPath: string) => {
+ipcMain.handle('wan:openPath', async (_e, targetPath: string) => {
   try { const res = await shell.openPath(targetPath); return { ok: res === '', message: res }; } catch (e: any) { return { ok: false, message: e?.message || String(e) }; }
 });
 
 // GPU info via python (torch)
-ipcMain.handle('python:gpu_info', async (_e, pythonPath: string) => {
+ipcMain.handle('wan:gpuInfo', async (_e, pythonPath: string) => {
   try {
     const code = [
       'import json, torch, sys',
