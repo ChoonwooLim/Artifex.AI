@@ -48,9 +48,9 @@ const App: React.FC = () => {
   const [imagePath, setImagePath] = useState('');
   const [pythonPath, setPythonPath] = useState('python');
   const [scriptPath, setScriptPath] = useState('');
-  const [useOffload, setUseOffload] = useState(true);
+  const [useOffload, setUseOffload] = useState(false);
   const [useConvertDtype, setUseConvertDtype] = useState(true);
-  const [useT5Cpu, setUseT5Cpu] = useState(true);
+  const [useT5Cpu, setUseT5Cpu] = useState(false);
   const [stepsState, setStepsState] = useState<number | null>(null);
   const [lengthSec, setLengthSec] = useState(5);
   const [fps, setFps] = useState(24);
@@ -370,14 +370,8 @@ const App: React.FC = () => {
     setLengthSec(3);
     setFps(16);
     setStepsState(30);
-    // conservative defaults; 사용가능 VRAM 높으면 사용자가 해제 가능
-    if (task.includes('ti2v')) {
-      setUseT5Cpu(true);
-      setUseOffload(true);
-    } else {
-      setUseT5Cpu(true);
-      setUseOffload(true);
-    }
+    // Model offload and T5 CPU are now false by default
+    // Users can enable them manually if needed for lower VRAM GPUs
   }, [task]);
 
   const suggestScript = useCallback(async () => {

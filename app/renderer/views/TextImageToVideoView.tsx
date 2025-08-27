@@ -29,9 +29,9 @@ export const TextImageToVideoView: React.FC = () => {
   const [cfgScale, setCfgScale] = useState(8.5);
   const [seed, setSeed] = useState(-1);
   const [scheduler, setScheduler] = useState('DPM++');
-  const [useOffload, setUseOffload] = useState(true);
+  const [useOffload, setUseOffload] = useState(false);
   const [useConvertDtype, setUseConvertDtype] = useState(true);
-  const [useT5Cpu, setUseT5Cpu] = useState(true);
+  const [useT5Cpu, setUseT5Cpu] = useState(false);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState('Ready');
@@ -196,7 +196,27 @@ export const TextImageToVideoView: React.FC = () => {
 
     window.wanApi.onStderr((data) => {
       if (logRef.current) {
-        logRef.current.value += `[ERROR] ${data}`;
+        // Loading checkpoint shards는 정상적인 진행 상황
+        if (data.includes('Loading checkpoint shards')) {
+          logRef.current.value += `[PROGRESS] ${data}`;
+        }
+        // Triton 관련은 경고로만 표시
+        else if (data.includes('Triton')) {
+          logRef.current.value += `[WARNING] ${data}`;
+        }
+        // 실제 에러 메시지
+        else if (data.includes('[ERROR]') || data.includes('Error') || data.includes('error')) {
+          // 파일명에 error가 포함된 경우는 제외
+          if (!data.includes('.py') && !data.includes('_error') && !data.includes('error_')) {
+            logRef.current.value += `[ERROR] ${data}`;
+          } else {
+            logRef.current.value += data;
+          }
+        } else if (data.includes('WARNING') || data.includes('Warning')) {
+          logRef.current.value += `[WARNING] ${data}`;
+        } else {
+          logRef.current.value += data;
+        }
       }
     });
 

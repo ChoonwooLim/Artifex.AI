@@ -12,9 +12,9 @@ const Flow: React.FC = () => {
   const [ckpt, setCkpt] = React.useState('');
   const [pythonPath, setPythonPath] = React.useState('python');
   const [scriptPath, setScriptPath] = React.useState('');
-  const [useOffload, setUseOffload] = React.useState(true);
+  const [useOffload, setUseOffload] = React.useState(false);
   const [useConvertDtype, setUseConvertDtype] = React.useState(true);
-  const [useT5Cpu, setUseT5Cpu] = React.useState(true);
+  const [useT5Cpu, setUseT5Cpu] = React.useState(false);
   const [running, setRunning] = React.useState(false);
   const logRef = React.useRef<HTMLTextAreaElement>(null);
 

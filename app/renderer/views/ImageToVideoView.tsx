@@ -28,7 +28,7 @@ export const ImageToVideoView: React.FC = () => {
   const [motionBucket, setMotionBucket] = useState(127);
   const [noiseAugStrength, setNoiseAugStrength] = useState(0.02);
   const [seed, setSeed] = useState(-1);
-  const [useOffload, setUseOffload] = useState(true);
+  const [useOffload, setUseOffload] = useState(false);
   const [useConvertDtype, setUseConvertDtype] = useState(true);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -179,7 +179,19 @@ export const ImageToVideoView: React.FC = () => {
 
     window.wanApi.onStderr((data) => {
       if (logRef.current) {
-        logRef.current.value += `[ERROR] ${data}`;
+        // Loading checkpoint shards는 실제로 에러가 아니라 진행 상황임
+        if (data.includes('Loading checkpoint shards')) {
+          logRef.current.value += data;
+        } else if (data.includes('WARNING') || data.includes('Triton')) {
+          logRef.current.value += `[WARNING] ${data}`;
+        } else if (!data.includes('it/s]')) {
+          // 실제 에러만 ERROR로 표시
+          logRef.current.value += `[ERROR] ${data}`;
+        } else {
+          // 진행률 표시는 그대로 출력
+          logRef.current.value += data;
+        }
+        logRef.current.scrollTop = logRef.current.scrollHeight;
       }
     });
 
