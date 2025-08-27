@@ -3,6 +3,9 @@ import { AnimatePresence } from 'framer-motion';
 import { GlobalStyles } from './styles/GlobalStyles';
 import { Layout } from './components/Layout';
 import { VideoGenerationView } from './views/VideoGenerationView';
+import { TextToVideoView } from './views/TextToVideoView';
+import { ImageToVideoView } from './views/ImageToVideoView';
+import { TextImageToVideoView } from './views/TextImageToVideoView';
 import { theme } from './styles/theme';
 import { 
   Sparkles, Play, Square, FolderOpen, Save, Settings2, 
@@ -639,11 +642,32 @@ export const EnhancedApp: React.FC = () => {
       <GlobalStyles />
       <Layout activeView={activeView} onViewChange={setActiveView}>
         <AnimatePresence mode="wait">
-          {activeView.startsWith('gen-') && <WANGenerationCore key="generation" />}
+          {activeView === 'gen-t2v' && <TextToVideoView key="t2v" />}
+          {activeView === 'gen-i2v' && <ImageToVideoView key="i2v" />}
+          {activeView === 'gen-ti2v' && <TextImageToVideoView key="ti2v" />}
+          {activeView === 'gen-batch' && <WANGenerationCore key="batch" />}
           {activeView === 'dashboard' && (
             <div style={{ padding: theme.spacing.xl }}>
               <h1>Dashboard Coming Soon</h1>
             </div>
+          )}
+          {activeView === 'editor' && (
+            <div style={{ padding: theme.spacing.xl }}>
+              <h1>Video Editor Coming Soon</h1>
+            </div>
+          )}
+          {activeView === 'effects' && (
+            <div style={{ padding: theme.spacing.xl }}>
+              <h1>Effects & Filters Coming Soon</h1>
+            </div>
+          )}
+          {activeView === 'models' && (
+            <div style={{ padding: theme.spacing.xl }}>
+              <h1>Model Manager Coming Soon</h1>
+            </div>
+          )}
+          {!['gen-t2v', 'gen-i2v', 'gen-ti2v', 'gen-batch', 'dashboard', 'editor', 'effects', 'models'].includes(activeView) && (
+            <WANGenerationCore key="default" />
           )}
         </AnimatePresence>
       </Layout>
