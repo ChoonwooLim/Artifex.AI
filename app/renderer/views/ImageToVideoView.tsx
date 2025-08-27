@@ -131,6 +131,8 @@ export const ImageToVideoView: React.FC = () => {
 
     if (logRef.current) {
       logRef.current.value = '';
+      // Debug: Show full command
+      logRef.current.value = `[DEBUG] Command: python ${scriptPath} ${runArgs.join(' ')}\n\n`;
     }
 
     window.wanApi.onStdout((data) => {
@@ -208,6 +210,7 @@ export const ImageToVideoView: React.FC = () => {
       pythonPath,
       scriptPath,
       args: runArgs,
+      cwd: undefined,  // Match EnhancedApp's behavior
     });
 
     if (!result.ok) {

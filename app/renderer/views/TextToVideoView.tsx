@@ -97,6 +97,8 @@ export const TextToVideoView: React.FC = () => {
 
     if (logRef.current) {
       logRef.current.value = '';
+      // Debug: Show full command
+      logRef.current.value = `[DEBUG] Command: python ${scriptPath} ${runArgs.join(' ')}\n\n`;
     }
 
     window.wanApi.onStdout((data) => {
@@ -147,16 +149,31 @@ export const TextToVideoView: React.FC = () => {
 
     window.wanApi.onStderr((data) => {
       if (logRef.current) {
-        // Loading checkpoint shards는 실제로 에러가 아니라 진행 상황임
-        if (data.includes('Loading checkpoint shards')) {
-          logRef.current.value += data;
+        // tqdm progress bars and other stderr outputs
+        if (data.includes('%|') || data.includes('it/s]')) {
+          // This is a progress bar from tqdm - parse it for progress
+          const match = data.match(/(\d+)%\|/);
+          if (match) {
+            const pct = parseInt(match[1]);
+            setProgress(pct);
+          }
+          // Clear previous line if it's a progress update
+          const lines = logRef.current.value.split('\n');
+          if (lines[lines.length - 1].includes('%|')) {
+            lines[lines.length - 1] = data;
+            logRef.current.value = lines.join('\n');
+          } else {
+            logRef.current.value += data;
+          }
+        } else if (data.includes('Loading checkpoint shards')) {
+          logRef.current.value += `[INFO] ${data}`;
         } else if (data.includes('WARNING') || data.includes('Triton')) {
           logRef.current.value += `[WARNING] ${data}`;
-        } else if (!data.includes('it/s]')) {
-          // 실제 에러만 ERROR로 표시
-          logRef.current.value += `[ERROR] ${data}`;
+        } else if (data.includes('Generating video')) {
+          logRef.current.value += `[INFO] ${data}`;
+          setPhase('Starting generation');
         } else {
-          // 진행률 표시는 그대로 출력
+          // Other stderr output
           logRef.current.value += data;
         }
         logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -174,6 +191,7 @@ export const TextToVideoView: React.FC = () => {
       pythonPath,
       scriptPath,
       args: runArgs,
+      cwd: undefined,  // Match EnhancedApp's behavior
     });
 
     if (!result.ok) {
