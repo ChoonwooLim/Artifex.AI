@@ -74,7 +74,8 @@ export const TextToVideoView: React.FC = () => {
       '--base_seed', String(seed),
       '--sample_solver', scheduler === 'DPM++' ? 'dpm++' : 'unipc',
     ];
-    if (useOffload) a.push('--offload_model', 'True');
+    // Always explicitly pass offload_model to prevent script default
+    a.push('--offload_model', useOffload ? 'True' : 'False');
     if (useConvertDtype) a.push('--convert_model_dtype');
     if (useT5Cpu) a.push('--t5_cpu');
     return a;
