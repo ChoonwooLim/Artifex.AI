@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nvidia-smi:*)",
+      "Bash(python:*)",
+      "Bash(powershell:*)",
+      "Bash(npm start)",
+      "Bash(pip install:*)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "D:\\mnt\\d\\XX-v01"
+    ]
+  }
+}
