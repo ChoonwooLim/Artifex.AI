@@ -385,7 +385,7 @@ const WANGenerationCore: React.FC = () => {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>
-          WAN 2.2 Professional Video Generation
+          Artifex.AI Video Generation
         </h1>
         <p style={{ color: theme.colors.textSecondary, fontSize: theme.typography.fontSize.lg }}>
           Enterprise-grade AI video synthesis with state-of-the-art models

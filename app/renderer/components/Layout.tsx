@@ -163,14 +163,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onViewChan
                     WebkitTextFillColor: 'transparent',
                     margin: 0,
                   }}>
-                    WAN Studio
+                    Artifex.AI
                   </h1>
                   <p style={{
                     fontSize: theme.typography.fontSize.xs,
                     color: theme.colors.textTertiary,
                     margin: 0,
                   }}>
-                    Professional Edition
+                    Professional Video Suite
                   </p>
                 </div>
               </motion.div>
