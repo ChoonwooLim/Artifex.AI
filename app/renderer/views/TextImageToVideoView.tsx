@@ -123,7 +123,6 @@ export const TextImageToVideoView: React.FC = () => {
       '--image', imagePath,
       '--frame_num', String(4 * Math.round((fps * lengthSec) / 4) + 1),
       '--sample_steps', String(steps),
-      '--fps_override', String(fps),
       '--sample_guide_scale', String(cfgScale),
       '--base_seed', String(seed),
       '--sample_solver', scheduler === 'DPM++' ? 'dpm++' : 'unipc',

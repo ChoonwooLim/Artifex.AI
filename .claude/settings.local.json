@@ -14,7 +14,12 @@
       "Bash(npm install:*)",
       "Bash(npm run electron:*)",
       "Bash(npm run:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(for:*)",
+      "Bash(do echo \"=== $dir ===\")",
+      "Bash(du:*)",
+      "Bash(done)",
+      "Bash(where generate.py)"
     ],
     "deny": [],
     "ask": [],
