@@ -161,8 +161,8 @@ class WindowsFlashAttention:
             # Normalize chunk output
             chunk_output = chunk_output / (chunk_sum + 1e-10)
             
-            # Apply dropout if needed
-            if dropout_p > 0 and q.training:
+            # Apply dropout if needed (only in training mode)
+            if dropout_p > 0 and torch.is_grad_enabled():
                 chunk_output = F.dropout(chunk_output, p=dropout_p)
             
             # Update global output
@@ -193,7 +193,7 @@ class WindowsFlashAttention:
         
         attn_weights = F.softmax(scores, dim=-1)
         
-        if dropout_p > 0 and q.training:
+        if dropout_p > 0 and torch.is_grad_enabled():
             attn_weights = F.dropout(attn_weights, p=dropout_p)
         
         output = torch.matmul(attn_weights, v)
@@ -251,9 +251,11 @@ class WindowsMemoryEfficientAttention:
             enable_mem_efficient=True
         ):
             q = q * scale
+            # Use torch.is_grad_enabled() for dropout decision
+            effective_dropout = dropout_p if torch.is_grad_enabled() else 0.0
             output = F.scaled_dot_product_attention(
                 q, k, v,
-                dropout_p=dropout_p if q.training else 0.0,
+                dropout_p=effective_dropout,
                 is_causal=False
             )
         

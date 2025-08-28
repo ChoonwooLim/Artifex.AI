@@ -51,10 +51,13 @@ def get_attention_backend():
     """Determine which attention backend to use based on availability and settings"""
     global _attention_warning_shown
     
+    # Determine dropout mode
+    dropout_mode = "enabled" if torch.is_grad_enabled() else "disabled (inference)"
+    
     # Force SDPA if environment variable is set
     if FORCE_SDPA:
         if not _attention_warning_shown:
-            print("[Attention] Using SDPA backend (forced by USE_SDPA=1)")
+            print(f"[Attention] Using SDPA backend (forced by USE_SDPA=1), dropout={dropout_mode}")
             _attention_warning_shown = True
         return "sdpa"
     
@@ -62,34 +65,34 @@ def get_attention_backend():
     if ATTENTION_BACKEND != "auto":
         if ATTENTION_BACKEND == "fa3" and FLASH_ATTN_3_AVAILABLE:
             if not _attention_warning_shown:
-                print("[Attention] Using Flash Attention 3")
+                print(f"[Attention] Using Flash Attention 3, dropout={dropout_mode}")
                 _attention_warning_shown = True
             return "fa3"
         elif ATTENTION_BACKEND == "fa2" and FLASH_ATTN_2_AVAILABLE:
             if not _attention_warning_shown:
-                print("[Attention] Using Flash Attention 2")
+                print(f"[Attention] Using Flash Attention 2, dropout={dropout_mode}")
                 _attention_warning_shown = True
             return "fa2"
         elif ATTENTION_BACKEND == "sdpa":
             if not _attention_warning_shown:
-                print("[Attention] Using PyTorch SDPA")
+                print(f"[Attention] Using PyTorch SDPA, dropout={dropout_mode}")
                 _attention_warning_shown = True
             return "sdpa"
     
     # Auto mode: FA3 > FA2 > SDPA
     if FLASH_ATTN_3_AVAILABLE:
         if not _attention_warning_shown:
-            print("[Attention] Auto-selected Flash Attention 3")
+            print(f"[Attention] Auto-selected Flash Attention 3, dropout={dropout_mode}")
             _attention_warning_shown = True
         return "fa3"
     elif FLASH_ATTN_2_AVAILABLE:
         if not _attention_warning_shown:
-            print("[Attention] Auto-selected Flash Attention 2")
+            print(f"[Attention] Auto-selected Flash Attention 2, dropout={dropout_mode}")
             _attention_warning_shown = True
         return "fa2"
     else:
         if not _attention_warning_shown:
-            print("[Attention] Using PyTorch SDPA (Flash Attention not available)")
+            print(f"[Attention] Using PyTorch SDPA (Flash Attention not available), dropout={dropout_mode}")
             _attention_warning_shown = True
         return "sdpa"
 
@@ -226,10 +229,12 @@ def flash_attention(
             enable_math=True,    # Enable math backend as fallback
             enable_mem_efficient=True  # Prioritize memory efficient backend
         ):
+            # Use torch.is_grad_enabled() to determine if we're in training mode
+            effective_dropout = dropout_p if torch.is_grad_enabled() else 0.0
             x = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v,
                 attn_mask=None,
-                dropout_p=dropout_p if q.training else 0.0,
+                dropout_p=effective_dropout,
                 scale=softmax_scale,
                 is_causal=causal
             )
@@ -283,8 +288,10 @@ def attention(
         k = k.transpose(1, 2).to(dtype)
         v = v.transpose(1, 2).to(dtype)
 
+        # Use torch.is_grad_enabled() for dropout decision
+        effective_dropout = dropout_p if torch.is_grad_enabled() else 0.0
         out = torch.nn.functional.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, is_causal=causal, dropout_p=dropout_p)
+            q, k, v, attn_mask=attn_mask, is_causal=causal, dropout_p=effective_dropout)
 
         out = out.transpose(1, 2).contiguous()
         return out
