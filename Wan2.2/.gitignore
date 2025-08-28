@@ -1,42 +1,7 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-build/
-dist/
-
-# Model checkpoints (large files)
-*.pth
-*.safetensors
-*.bin
-*.ckpt
-high_noise_model/
-low_noise_model/
-
-# Output videos
-*.mp4
-*.avi
-*.gif
-
-# Logs
-*.log
-nohup.out
-
-# Environment
-.env
-venv/
-env/
-
-# IDE
-.vscode/
-.idea/
-
-# Cache
-.cache/
-*.cache
-
-# Temporary
-*.tmp
-*.bak
-*~
+.DS_Store
+.vscode*
+tmp_examples*
+new_checkpoint*
+batch_test*
+nohup*

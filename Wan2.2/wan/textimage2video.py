@@ -364,9 +364,7 @@ class WanTI2V:
                 self.model.to(self.device)
                 torch.cuda.empty_cache()
 
-            total_steps = len(timesteps)
-            logging.info(f"[progress] steps_total={total_steps}")
-            for si, t in enumerate(tqdm(timesteps)):
+            for _, t in enumerate(tqdm(timesteps)):
                 latent_model_input = latents
                 timestep = [t]
 
@@ -394,8 +392,6 @@ class WanTI2V:
                     return_dict=False,
                     generator=seed_g)[0]
                 latents = [temp_x0.squeeze(0)]
-                if (si + 1) % 1 == 0:
-                    logging.info(f"[progress] step={si+1}/{total_steps}")
             x0 = latents
             if offload_model:
                 self.model.cpu()
@@ -403,7 +399,6 @@ class WanTI2V:
                 torch.cuda.empty_cache()
             if self.rank == 0:
                 videos = self.vae.decode(x0)
-                logging.info("[progress] decode=done")
 
         del noise, latents
         del sample_scheduler
