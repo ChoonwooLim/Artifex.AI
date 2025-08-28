@@ -70,9 +70,8 @@ def get_optimal_dtype():
 
 OPTIMAL_DTYPE = get_optimal_dtype()
 
-# Global mask cache to avoid recreation
-_MASK_CACHE = {}
-_MASK_CACHE_SIZE = 16  # Maximum cached masks
+# Windows Flash Attention threshold for long sequences
+WINDOWS_FLASH_THRESHOLD = 1024 * 1024  # Use for L²>1M computations
 
 # Track warning state to show only once
 _attention_warning_shown = False
@@ -280,50 +279,66 @@ def flash_attention(
             window_size=window_size,
             deterministic=deterministic).unflatten(0, (b, lq))
     else:
-        # Use PyTorch's optimized SDPA (Scaled Dot Product Attention)
-        # OPTIMIZATION: Per-sample SDPA for variable lengths (if beneficial)
-        use_per_sample = False
-        if q_lens is not None and k_lens is not None and b > 1:
-            # Better heuristic: compare actual computation cost
-            # Σ(L_i^2) vs B * L_max^2
-            actual_cost = torch.sum(q_lens * k_lens).item()
-            batch_cost = b * lq * lk
-            # Use per-sample if it saves >30% computation
-            if actual_cost < 0.7 * batch_cost:
-                use_per_sample = True
-                if not _attention_warning_shown:
-                    cost_ratio = actual_cost / batch_cost
-                    print(f"[Attention] Using per-sample SDPA (cost ratio: {cost_ratio:.2f})")
+        # Check if we should use Windows Flash Attention for very long sequences
+        if IS_WINDOWS and WINDOWS_FLASH_AVAILABLE and lq * lk > WINDOWS_FLASH_THRESHOLD:
+            # Use Windows Flash Attention for very long sequences
+            if not _attention_warning_shown:
+                print(f"[Attention] Using Windows Flash Attention for long sequence (L²={lq*lk:,})")
+            
+            # Reshape to [B*Lq, Nq, C1] format expected by windows wrapper
+            q_reshaped = q.unflatten(0, (b, lq))  # [B, Lq, Nq, C1]
+            k_reshaped = k.unflatten(0, (b, lk))  # [B, Lk, Nk, C1]
+            v_reshaped = v.unflatten(0, (b, lk))  # [B, Lk, Nk, C2]
+            
+            # Call Windows Flash Attention wrapper
+            x = windows_flash_attention_wrapper(
+                q_reshaped, k_reshaped, v_reshaped,
+                q_lens=q_lens, k_lens=k_lens,
+                dropout_p=dropout_p,
+                softmax_scale=softmax_scale,
+                causal=causal,
+                window_size=window_size,
+                dtype=dtype,
+                use_chunked=True,  # Enable chunking for long sequences
+                chunk_size=64
+            )
+        else:
+            # Use PyTorch's optimized SDPA (Scaled Dot Product Attention)
+            # OPTIMIZATION: Per-sample SDPA for variable lengths (if beneficial)
+            use_per_sample = False
+            if q_lens is not None and k_lens is not None and b > 1:
+                # Better heuristic: compare actual computation cost
+                # Σ(L_i^2) vs B * L_max^2
+                actual_cost = torch.sum(q_lens * k_lens).item()
+                batch_cost = b * lq * lk
+                # Use per-sample if it saves >30% computation
+                if actual_cost < 0.7 * batch_cost:
+                    use_per_sample = True
+                    if not _attention_warning_shown:
+                        cost_ratio = actual_cost / batch_cost
+                        print(f"[Attention] Using per-sample SDPA (cost ratio: {cost_ratio:.2f})")
         
         if use_per_sample and q_lens is not None and k_lens is not None:
-            # OPTIMIZED: Per-sample SDPA with minimal overhead
-            # Direct reshape to [B, H, L, D] format for SDPA
-            q = q.unflatten(0, (b, lq))  # [B, Lq, Nq, C1]
-            k = k.unflatten(0, (b, lk))  # [B, Lk, Nk, C1]
-            v = v.unflatten(0, (b, lk))  # [B, Lk, Nk, C2]
+            # OPTIMIZED: Per-sample SDPA with correct transpose axis
+            # Reshape to standard SDPA format [B, H, L, D]
+            q = q.unflatten(0, (b, lq)).transpose(1, 2)  # [B, Nq, Lq, C1]
+            k = k.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C1]
+            v = v.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C2]
             
-            # Pre-allocate output tensor
-            output_shape = (b, q.size(2), lq, v.size(-1))
-            x = torch.zeros(output_shape, dtype=v.dtype, device=v.device)
+            # Collect results without padding (minimize overhead)
+            outputs = []
             
             # Process each sample with its actual length
             for i in range(b):
                 q_len = int(q_lens[i])
                 k_len = int(k_lens[i])
                 
-                # Skip if full length (no benefit)
-                if q_len == lq and k_len == lk:
-                    # Process full sequence
-                    q_i = q[i:i+1].transpose(1, 2)  # [1, Nq, Lq, C1]
-                    k_i = k[i:i+1].transpose(1, 2)  # [1, Nk, Lk, C1]
-                    v_i = v[i:i+1].transpose(1, 2)  # [1, Nk, Lk, C2]
-                else:
-                    # Extract and transpose valid portions only
-                    q_i = q[i:i+1, :q_len].transpose(1, 2)  # [1, Nq, q_len, C1]
-                    k_i = k[i:i+1, :k_len].transpose(1, 2)  # [1, Nk, k_len, C1]
-                    v_i = v[i:i+1, :k_len].transpose(1, 2)  # [1, Nk, k_len, C2]
+                # Extract valid portions only (already in [B, H, L, D])
+                q_i = q[i:i+1, :, :q_len, :]  # [1, Nq, q_len, C1]
+                k_i = k[i:i+1, :, :k_len, :]  # [1, Nk, k_len, C1]
+                v_i = v[i:i+1, :, :k_len, :]  # [1, Nk, k_len, C2]
                 
-                # Run SDPA on actual/full length
+                # Run SDPA on actual length
                 out_i = torch.nn.functional.scaled_dot_product_attention(
                     q_i, k_i, v_i,
                     attn_mask=None,
@@ -332,10 +347,15 @@ def flash_attention(
                     is_causal=causal
                 )
                 
-                # Place result directly in output tensor
-                x[i, :, :out_i.size(2), :] = out_i[0]
+                # Pad to max length if needed
+                if out_i.size(2) < lq:
+                    pad_size = (0, 0, 0, lq - out_i.size(2))  # Pad L dimension
+                    out_i = torch.nn.functional.pad(out_i, pad_size)
+                
+                outputs.append(out_i)
             
-            # x is already in [B, Nq, Lq, C2] format
+            # Stack results efficiently
+            x = torch.cat(outputs, dim=0)  # [B, Nq, Lq, C2]
         else:
             # Standard path: Process all at once (faster when lengths are similar)
             # Efficient reshape: unflatten and transpose in one go
@@ -359,13 +379,13 @@ def flash_attention(
                     scale=softmax_scale,
                     is_causal=causal  # Causal is efficient without custom masks
                 )
-        
-        # Transpose back if needed
-        if x.dim() == 4 and x.size(1) != lq:
-            x = x.transpose(1, 2)  # [B, Lq, Nq, C2]
-        
-        # Ensure contiguous
-        x = x.contiguous()
+            
+            # Transpose back if needed
+            if x.dim() == 4 and x.size(1) != lq:
+                x = x.transpose(1, 2)  # [B, Lq, Nq, C2]
+            
+            # Ensure contiguous
+            x = x.contiguous()
 
     # output
     return x.type(out_dtype)
@@ -412,24 +432,8 @@ def attention(
         k = k.transpose(1, 2).to(dtype)
         v = v.transpose(1, 2).to(dtype)
         
-        # Create attention mask for padding if needed
+        # NO MASK for optimal performance - let SDPA handle padding internally
         attn_mask = None
-        if q_lens is not None or k_lens is not None:
-            # Create proper padding mask instead of ignoring it
-            if q_lens is not None and k_lens is not None:
-                batch_size = q.size(0)
-                max_q_len = q.size(2)
-                max_k_len = k.size(2)
-                attn_mask = torch.zeros((batch_size, 1, max_q_len, max_k_len), 
-                                       dtype=dtype, device=q.device)
-                
-                for i in range(batch_size):
-                    q_len = min(q_lens[i].item() if hasattr(q_lens[i], 'item') else q_lens[i], max_q_len)
-                    k_len = min(k_lens[i].item() if hasattr(k_lens[i], 'item') else k_lens[i], max_k_len)
-                    attn_mask[i, 0, :q_len, :k_len] = 1.0
-                
-                # Convert to additive mask
-                attn_mask = (1.0 - attn_mask) * -10000.0
 
         # Use PyTorch's optimized SDPA with backend hints
         with torch.backends.cuda.sdp_kernel(
