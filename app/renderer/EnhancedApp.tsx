@@ -3,6 +3,9 @@ import { AnimatePresence } from 'framer-motion';
 import { GlobalStyles } from './styles/GlobalStyles';
 import { Layout } from './components/Layout';
 import { VideoGenerationView } from './views/VideoGenerationView';
+import { TextToVideoView } from './views/TextToVideoView';
+import { ImageToVideoView } from './views/ImageToVideoView';
+import { TextImageToVideoView } from './views/TextImageToVideoView';
 import { theme } from './styles/theme';
 import { 
   Sparkles, Play, Square, FolderOpen, Save, Settings2, 
@@ -51,9 +54,9 @@ const WANGenerationCore: React.FC = () => {
   const [imagePath, setImagePath] = useState('');
   const [pythonPath, setPythonPath] = useState('python');
   const [scriptPath, setScriptPath] = useState('');
-  const [useOffload, setUseOffload] = useState(true);
+  const [useOffload, setUseOffload] = useState(false);
   const [useConvertDtype, setUseConvertDtype] = useState(true);
-  const [useT5Cpu, setUseT5Cpu] = useState(true);
+  const [useT5Cpu, setUseT5Cpu] = useState(false);
   const [stepsState, setStepsState] = useState<number | null>(null);
   const [lengthSec, setLengthSec] = useState(5);
   const [fps, setFps] = useState(24);
@@ -120,7 +123,8 @@ const WANGenerationCore: React.FC = () => {
     if (task !== 't2v-A14B' && imagePath) {
       a.push('--image', imagePath);
     }
-    if (useOffload) a.push('--offload_model', 'True');
+    // Always explicitly pass offload_model to prevent script default
+    a.push('--offload_model', useOffload ? 'True' : 'False');
     if (useConvertDtype) a.push('--convert_model_dtype');
     if (useT5Cpu) a.push('--t5_cpu');
     const n = Math.max(1, Math.round((fps * lengthSec) / 4));
@@ -128,6 +132,10 @@ const WANGenerationCore: React.FC = () => {
     a.push('--frame_num', String(frameNum));
     a.push('--sample_steps', String(stepsState ?? (task.includes('ti2v') ? 50 : 40)));
     a.push('--fps_override', String(fps));
+    // Add missing required parameters
+    a.push('--sample_guide_scale', '7.5');
+    a.push('--base_seed', '-1');
+    a.push('--sample_solver', 'dpm++');
     return a;
   }, [task, size, ckpt, prompt, imagePath, useOffload, useConvertDtype, useT5Cpu, lengthSec, fps, stepsState]);
 
@@ -353,13 +361,8 @@ const WANGenerationCore: React.FC = () => {
     setLengthSec(3);
     setFps(16);
     setStepsState(30);
-    if (task.includes('ti2v')) {
-      setUseT5Cpu(true);
-      setUseOffload(true);
-    } else {
-      setUseT5Cpu(true);
-      setUseOffload(true);
-    }
+    // Model offload and T5 CPU are now false by default
+    // Users can enable them manually if needed
   }, [task]);
 
   const suggestScript = useCallback(async () => {
@@ -639,11 +642,32 @@ export const EnhancedApp: React.FC = () => {
       <GlobalStyles />
       <Layout activeView={activeView} onViewChange={setActiveView}>
         <AnimatePresence mode="wait">
-          {activeView.startsWith('gen-') && <WANGenerationCore key="generation" />}
+          {activeView === 'gen-t2v' && <TextToVideoView key="t2v" />}
+          {activeView === 'gen-i2v' && <ImageToVideoView key="i2v" />}
+          {activeView === 'gen-ti2v' && <TextImageToVideoView key="ti2v" />}
+          {activeView === 'gen-batch' && <WANGenerationCore key="batch" />}
           {activeView === 'dashboard' && (
             <div style={{ padding: theme.spacing.xl }}>
               <h1>Dashboard Coming Soon</h1>
             </div>
+          )}
+          {activeView === 'editor' && (
+            <div style={{ padding: theme.spacing.xl }}>
+              <h1>Video Editor Coming Soon</h1>
+            </div>
+          )}
+          {activeView === 'effects' && (
+            <div style={{ padding: theme.spacing.xl }}>
+              <h1>Effects & Filters Coming Soon</h1>
+            </div>
+          )}
+          {activeView === 'models' && (
+            <div style={{ padding: theme.spacing.xl }}>
+              <h1>Model Manager Coming Soon</h1>
+            </div>
+          )}
+          {!['gen-t2v', 'gen-i2v', 'gen-ti2v', 'gen-batch', 'dashboard', 'editor', 'effects', 'models'].includes(activeView) && (
+            <WANGenerationCore key="default" />
           )}
         </AnimatePresence>
       </Layout>

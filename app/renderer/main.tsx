@@ -48,9 +48,9 @@ const App: React.FC = () => {
   const [imagePath, setImagePath] = useState('');
   const [pythonPath, setPythonPath] = useState('python');
   const [scriptPath, setScriptPath] = useState('');
-  const [useOffload, setUseOffload] = useState(true);
+  const [useOffload, setUseOffload] = useState(false);
   const [useConvertDtype, setUseConvertDtype] = useState(true);
-  const [useT5Cpu, setUseT5Cpu] = useState(true);
+  const [useT5Cpu, setUseT5Cpu] = useState(false);
   const [stepsState, setStepsState] = useState<number | null>(null);
   const [lengthSec, setLengthSec] = useState(5);
   const [fps, setFps] = useState(24);
@@ -100,7 +100,8 @@ const App: React.FC = () => {
     if (task !== 't2v-A14B' && imagePath) {
       a.push('--image', imagePath);
     }
-    if (useOffload) a.push('--offload_model', 'True');
+    // Always explicitly pass offload_model to prevent script default
+    a.push('--offload_model', useOffload ? 'True' : 'False');
     if (useConvertDtype) a.push('--convert_model_dtype');
     if (useT5Cpu) a.push('--t5_cpu');
     // frame_num = 4n+1, n = round(fps*length/4)
@@ -109,6 +110,10 @@ const App: React.FC = () => {
     a.push('--frame_num', String(frameNum));
     a.push('--sample_steps', String(stepsState ?? (task.includes('ti2v') ? 50 : 40)));
     a.push('--fps_override', String(fps));
+    // Add missing required parameters
+    a.push('--sample_guide_scale', '7.5');
+    a.push('--base_seed', '-1');
+    a.push('--sample_solver', 'dpm++');
     return a;
   }, [task, size, ckpt, prompt, imagePath, useOffload, useConvertDtype, useT5Cpu, lengthSec, fps, stepsState]);
 
@@ -370,14 +375,8 @@ const App: React.FC = () => {
     setLengthSec(3);
     setFps(16);
     setStepsState(30);
-    // conservative defaults; 사용가능 VRAM 높으면 사용자가 해제 가능
-    if (task.includes('ti2v')) {
-      setUseT5Cpu(true);
-      setUseOffload(true);
-    } else {
-      setUseT5Cpu(true);
-      setUseOffload(true);
-    }
+    // Model offload and T5 CPU are now false by default
+    // Users can enable them manually if needed for lower VRAM GPUs
   }, [task]);
 
   const suggestScript = useCallback(async () => {

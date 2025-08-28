@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { theme } from './theme';
 
 export const GlobalStyles: React.FC = () => {
-  return (
-    <style jsx global>{`
+  useEffect(() => {
+    const styleId = 'global-styles';
+    const existingStyle = document.getElementById(styleId);
+    
+    if (existingStyle) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.innerHTML = `
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
       
       * {
@@ -173,6 +182,16 @@ export const GlobalStyles: React.FC = () => {
         border-radius: ${theme.borderRadius.md};
         overflow-x: auto;
       }
-    `}</style>
-  );
+    `;
+    
+    document.head.appendChild(style);
+    
+    return () => {
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    };
+  }, []);
+
+  return null;
 };

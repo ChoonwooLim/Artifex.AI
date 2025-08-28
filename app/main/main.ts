@@ -15,9 +15,29 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: false // Allow loading local files
     }
   });
+
+  // Set Content Security Policy for development
+  if (process.env.VITE_DEV_SERVER) {
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [`
+            default-src 'self' http://localhost:5173;
+            script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173;
+            style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+            font-src 'self' https://fonts.gstatic.com data:;
+            img-src 'self' data: file: http: https:;
+            connect-src 'self' http://localhost:5173 ws://localhost:5173;
+          `.replace(/\s+/g, ' ')]
+        }
+      });
+    });
+  }
 
   const devUrl = process.env.ELECTRON_START_URL;
   if (devUrl) {
@@ -59,11 +79,13 @@ ipcMain.handle('wan:run', async (_evt, payload: RunArgs) => {
     if (!existsSync(scriptPath)) {
       return { ok: false, message: `Script not found: ${scriptPath}` };
     }
+    const scriptDir = path.dirname(scriptPath);
     const child = spawn(pythonPath, [scriptPath, ...args], {
-      cwd: cwd || path.dirname(scriptPath),
+      cwd: cwd || scriptDir,
       windowsHide: true,
       env: {
         ...process.env,
+        PYTHONPATH: scriptDir,  // Add script directory to PYTHONPATH
         PYTHONIOENCODING: 'utf-8',
         PYTHONUTF8: '1'
       }
