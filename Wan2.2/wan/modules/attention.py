@@ -1,6 +1,7 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import torch
 import platform
+import os
 
 try:
     import flash_attn_interface
@@ -25,12 +26,72 @@ if IS_WINDOWS:
 else:
     WINDOWS_FLASH_AVAILABLE = False
 
+# Environment variable for backend selection
+# USE_ATTENTION_BACKEND: auto | sdpa | fa2 | fa3
+ATTENTION_BACKEND = os.getenv("USE_ATTENTION_BACKEND", "auto").lower()
+# Force SDPA if explicitly set
+FORCE_SDPA = os.getenv("USE_SDPA", "0") == "1"
+
+# Set float32 matmul precision for better performance on Ampere+
+if torch.cuda.is_available():
+    torch.set_float32_matmul_precision('high')
+
+# Track warning state to show only once
+_attention_warning_shown = False
+
 import warnings
 
 __all__ = [
     'flash_attention',
     'attention',
 ]
+
+
+def get_attention_backend():
+    """Determine which attention backend to use based on availability and settings"""
+    global _attention_warning_shown
+    
+    # Force SDPA if environment variable is set
+    if FORCE_SDPA:
+        if not _attention_warning_shown:
+            print("[Attention] Using SDPA backend (forced by USE_SDPA=1)")
+            _attention_warning_shown = True
+        return "sdpa"
+    
+    # Check for specific backend request
+    if ATTENTION_BACKEND != "auto":
+        if ATTENTION_BACKEND == "fa3" and FLASH_ATTN_3_AVAILABLE:
+            if not _attention_warning_shown:
+                print("[Attention] Using Flash Attention 3")
+                _attention_warning_shown = True
+            return "fa3"
+        elif ATTENTION_BACKEND == "fa2" and FLASH_ATTN_2_AVAILABLE:
+            if not _attention_warning_shown:
+                print("[Attention] Using Flash Attention 2")
+                _attention_warning_shown = True
+            return "fa2"
+        elif ATTENTION_BACKEND == "sdpa":
+            if not _attention_warning_shown:
+                print("[Attention] Using PyTorch SDPA")
+                _attention_warning_shown = True
+            return "sdpa"
+    
+    # Auto mode: FA3 > FA2 > SDPA
+    if FLASH_ATTN_3_AVAILABLE:
+        if not _attention_warning_shown:
+            print("[Attention] Auto-selected Flash Attention 3")
+            _attention_warning_shown = True
+        return "fa3"
+    elif FLASH_ATTN_2_AVAILABLE:
+        if not _attention_warning_shown:
+            print("[Attention] Auto-selected Flash Attention 2")
+            _attention_warning_shown = True
+        return "fa2"
+    else:
+        if not _attention_warning_shown:
+            print("[Attention] Using PyTorch SDPA (Flash Attention not available)")
+            _attention_warning_shown = True
+        return "sdpa"
 
 
 def flash_attention(
@@ -49,6 +110,8 @@ def flash_attention(
     version=None,
 ):
     """
+    Enhanced attention with backend auto-selection and optimization.
+    
     q:              [B, Lq, Nq, C1].
     k:              [B, Lk, Nk, C1].
     v:              [B, Lk, Nk, C2]. Nq must be divisible by Nk.
@@ -64,9 +127,17 @@ def flash_attention(
     half_dtypes = (torch.float16, torch.bfloat16)
     assert dtype in half_dtypes
     assert q.device.type == 'cuda' and q.size(-1) <= 256
+    
+    # Ensure contiguous tensors for better performance
+    q = q.contiguous()
+    k = k.contiguous()
+    v = v.contiguous()
 
     # params
     b, lq, lk, out_dtype = q.size(0), q.size(1), k.size(1), q.dtype
+    
+    # Get backend selection
+    backend = get_attention_backend()
 
     def half(x):
         return x if x.dtype in half_dtypes else x.to(dtype)
@@ -97,14 +168,9 @@ def flash_attention(
     if q_scale is not None:
         q = q * q_scale
 
-    if version is not None and version == 3 and not FLASH_ATTN_3_AVAILABLE:
-        warnings.warn(
-            'Flash attention 3 is not available, use flash attention 2 instead.'
-        )
-
-    # apply attention
-    if (version is None or version == 3) and FLASH_ATTN_3_AVAILABLE:
-        # Note: dropout_p, window_size are not supported in FA3 now.
+    # Apply attention based on backend selection
+    if backend == "fa3" and FLASH_ATTN_3_AVAILABLE:
+        # Flash Attention 3
         x = flash_attn_interface.flash_attn_varlen_func(
             q=q,
             k=k,
@@ -120,7 +186,8 @@ def flash_attention(
             softmax_scale=softmax_scale,
             causal=causal,
             deterministic=deterministic)[0].unflatten(0, (b, lq))
-    elif FLASH_ATTN_2_AVAILABLE:
+    elif backend == "fa2" and FLASH_ATTN_2_AVAILABLE:
+        # Flash Attention 2
         x = flash_attn.flash_attn_varlen_func(
             q=q,
             k=k,
@@ -138,26 +205,26 @@ def flash_attention(
             deterministic=deterministic).unflatten(0, (b, lq))
     else:
         # Use PyTorch's optimized SDPA (Scaled Dot Product Attention)
-        # This provides 80-90% of Flash Attention performance on Windows
-        warnings.warn(
-            'Using PyTorch SDPA (Scaled Dot Product Attention) - optimized fallback for Windows.'
-        )
-        
         # Reshape back to batch format
         q = q.unflatten(0, (b, lq))
         k = k.unflatten(0, (b, lk))
         v = v.unflatten(0, (b, lk))
+        
+        # Ensure contiguous for SDPA
+        q = q.contiguous()
+        k = k.contiguous()
+        v = v.contiguous()
         
         # Transpose for scaled_dot_product_attention
         q = q.transpose(1, 2)  # [B, Nq, Lq, C1]
         k = k.transpose(1, 2)  # [B, Nk, Lk, C1]
         v = v.transpose(1, 2)  # [B, Nk, Lk, C2]
         
-        # Use PyTorch's optimized SDPA with memory efficient backend
+        # Use PyTorch's optimized SDPA with backend hints
         with torch.backends.cuda.sdp_kernel(
             enable_flash=False,  # Flash not available on Windows
-            enable_math=True,    # Enable math backend
-            enable_mem_efficient=True  # Enable memory efficient backend
+            enable_math=True,    # Enable math backend as fallback
+            enable_mem_efficient=True  # Prioritize memory efficient backend
         ):
             x = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v,
