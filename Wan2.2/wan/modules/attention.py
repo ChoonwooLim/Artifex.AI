@@ -35,6 +35,20 @@ FORCE_SDPA = os.getenv("USE_SDPA", "0") == "1"
 # Set float32 matmul precision for better performance on Ampere+
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision('high')
+    
+# Determine optimal dtype based on GPU capabilities
+def get_optimal_dtype():
+    """Select optimal dtype based on GPU capabilities"""
+    if torch.cuda.is_available():
+        # Check for BF16 support
+        if torch.cuda.is_bf16_supported():
+            return torch.bfloat16
+        else:
+            # Use FP16 for GPUs without BF16 support (better performance)
+            return torch.float16
+    return torch.float32
+
+OPTIMAL_DTYPE = get_optimal_dtype()
 
 # Track warning state to show only once
 _attention_warning_shown = False
@@ -53,11 +67,13 @@ def get_attention_backend():
     
     # Determine dropout mode
     dropout_mode = "enabled" if torch.is_grad_enabled() else "disabled (inference)"
+    dtype_str = str(OPTIMAL_DTYPE).replace("torch.", "")
     
     # Force SDPA if environment variable is set
     if FORCE_SDPA:
         if not _attention_warning_shown:
-            print(f"[Attention] Using SDPA backend (forced by USE_SDPA=1), dropout={dropout_mode}")
+            print(f"[Attention] Using SDPA backend (forced by USE_SDPA=1)")
+            print(f"[Attention] Config: dtype={dtype_str}, dropout={dropout_mode}")
             _attention_warning_shown = True
         return "sdpa"
     
@@ -109,7 +125,7 @@ def flash_attention(
     causal=False,
     window_size=(-1, -1),
     deterministic=False,
-    dtype=torch.bfloat16,
+    dtype=None,
     version=None,
 ):
     """
@@ -127,6 +143,10 @@ def flash_attention(
     deterministic:  bool. If True, slightly slower and uses more memory.
     dtype:          torch.dtype. Apply when dtype of q/k/v is not float16/bfloat16.
     """
+    # Use optimal dtype if not specified
+    if dtype is None:
+        dtype = OPTIMAL_DTYPE
+    
     half_dtypes = (torch.float16, torch.bfloat16)
     assert dtype in half_dtypes
     assert q.device.type == 'cuda' and q.size(-1) <= 256
@@ -223,20 +243,56 @@ def flash_attention(
         k = k.transpose(1, 2)  # [B, Nk, Lk, C1]
         v = v.transpose(1, 2)  # [B, Nk, Lk, C2]
         
+        # Create attention mask for padding and window if needed
+        attn_mask = None
+        
+        # Apply padding mask if sequence lengths are specified
+        if q_lens is not None and k_lens is not None:
+            # Create block-diagonal attention mask for valid tokens only
+            max_q_len = q.size(2)
+            max_k_len = k.size(2)
+            attn_mask = torch.zeros((b, 1, max_q_len, max_k_len), 
+                                   dtype=q.dtype, device=q.device)
+            
+            for i in range(b):
+                q_len = min(q_lens[i].item(), max_q_len)
+                k_len = min(k_lens[i].item(), max_k_len)
+                attn_mask[i, 0, :q_len, :k_len] = 1.0
+            
+            # Convert to additive mask (0 for valid, -inf for invalid)
+            attn_mask = (1.0 - attn_mask) * -10000.0
+        
+        # Apply window attention if specified
+        if window_size != (-1, -1) and window_size[0] > 0:
+            window_left, window_right = window_size
+            if attn_mask is None:
+                attn_mask = torch.zeros((1, 1, q.size(2), k.size(2)), 
+                                       dtype=q.dtype, device=q.device)
+            
+            # Create window mask
+            for i in range(q.size(2)):
+                start = max(0, i - window_left)
+                end = min(k.size(2), i + window_right + 1)
+                if start > 0:
+                    attn_mask[:, :, i, :start] = -10000.0
+                if end < k.size(2):
+                    attn_mask[:, :, i, end:] = -10000.0
+        
         # Use PyTorch's optimized SDPA with backend hints
         with torch.backends.cuda.sdp_kernel(
             enable_flash=False,  # Flash not available on Windows
             enable_math=True,    # Enable math backend as fallback
             enable_mem_efficient=True  # Prioritize memory efficient backend
         ):
-            # Use torch.is_grad_enabled() to determine if we're in training mode
-            effective_dropout = dropout_p if torch.is_grad_enabled() else 0.0
+            # Always use dropout=0 for inference
+            effective_dropout = 0.0 if not torch.is_grad_enabled() else dropout_p
+            
             x = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v,
-                attn_mask=None,
+                attn_mask=attn_mask,
                 dropout_p=effective_dropout,
                 scale=softmax_scale,
-                is_causal=causal
+                is_causal=causal and attn_mask is None  # Only use causal if no custom mask
             )
         
         # Transpose back
@@ -258,7 +314,7 @@ def attention(
     causal=False,
     window_size=(-1, -1),
     deterministic=False,
-    dtype=torch.bfloat16,
+    dtype=None,
     fa_version=None,
 ):
     if FLASH_ATTN_2_AVAILABLE or FLASH_ATTN_3_AVAILABLE:
@@ -278,20 +334,48 @@ def attention(
             version=fa_version,
         )
     else:
-        if q_lens is not None or k_lens is not None:
-            warnings.warn(
-                'Padding mask is disabled when using scaled_dot_product_attention. It can have a significant impact on performance.'
-            )
-        attn_mask = None
-
+        # Use optimal dtype if not specified
+        if dtype is None:
+            dtype = OPTIMAL_DTYPE
+            
+        # Ensure proper dtype
         q = q.transpose(1, 2).to(dtype)
         k = k.transpose(1, 2).to(dtype)
         v = v.transpose(1, 2).to(dtype)
+        
+        # Create attention mask for padding if needed
+        attn_mask = None
+        if q_lens is not None or k_lens is not None:
+            # Create proper padding mask instead of ignoring it
+            if q_lens is not None and k_lens is not None:
+                batch_size = q.size(0)
+                max_q_len = q.size(2)
+                max_k_len = k.size(2)
+                attn_mask = torch.zeros((batch_size, 1, max_q_len, max_k_len), 
+                                       dtype=dtype, device=q.device)
+                
+                for i in range(batch_size):
+                    q_len = min(q_lens[i].item() if hasattr(q_lens[i], 'item') else q_lens[i], max_q_len)
+                    k_len = min(k_lens[i].item() if hasattr(k_lens[i], 'item') else k_lens[i], max_k_len)
+                    attn_mask[i, 0, :q_len, :k_len] = 1.0
+                
+                # Convert to additive mask
+                attn_mask = (1.0 - attn_mask) * -10000.0
 
-        # Use torch.is_grad_enabled() for dropout decision
-        effective_dropout = dropout_p if torch.is_grad_enabled() else 0.0
-        out = torch.nn.functional.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, is_causal=causal, dropout_p=effective_dropout)
+        # Use PyTorch's optimized SDPA with backend hints
+        with torch.backends.cuda.sdp_kernel(
+            enable_flash=False,
+            enable_math=True,
+            enable_mem_efficient=True
+        ):
+            # Always use dropout=0 for inference
+            effective_dropout = 0.0 if not torch.is_grad_enabled() else dropout_p
+            out = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, 
+                attn_mask=attn_mask, 
+                is_causal=causal and attn_mask is None,
+                dropout_p=effective_dropout
+            )
 
         out = out.transpose(1, 2).contiguous()
         return out
