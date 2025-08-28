@@ -37,6 +37,9 @@ FORCE_FP16 = os.getenv("WAN_FORCE_FP16", "0") == "1"
 # Set float32 matmul precision for better performance on Ampere+
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision('high')
+    # Enable TF32 for better performance on Ampere+
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     
 # Determine optimal dtype based on GPU capabilities
 def get_optimal_dtype():
@@ -175,9 +178,14 @@ def flash_attention(
     deterministic:  bool. If True, slightly slower and uses more memory.
     dtype:          torch.dtype. Apply when dtype of q/k/v is not float16/bfloat16.
     """
-    # Use optimal dtype if not specified
+    # DTYPE OPTIMIZATION: Use input dtype to avoid casting
+    # If dtype not specified, use q's dtype (already optimal from model)
     if dtype is None:
-        dtype = OPTIMAL_DTYPE
+        # Check if q already has optimal dtype
+        if q.dtype in (torch.float16, torch.bfloat16):
+            dtype = q.dtype
+        else:
+            dtype = OPTIMAL_DTYPE
     
     half_dtypes = (torch.float16, torch.bfloat16)
     assert dtype in half_dtypes
@@ -193,6 +201,19 @@ def flash_attention(
     
     # Get backend selection
     backend = get_attention_backend()
+    
+    # Performance logging (first call only)
+    global _attention_warning_shown
+    if not _attention_warning_shown:
+        dtype_str = str(dtype).replace("torch.", "")
+        mode = "inference" if not torch.is_grad_enabled() else "training"
+        print(f"[Attention] Config: backend={backend}, dtype={dtype_str}, mode={mode}, "
+              f"shape=[B={b}, Lq={lq}, Lk={lk}], dropout={dropout_p if torch.is_grad_enabled() else 0}")
+        if q_lens is not None and k_lens is not None:
+            actual_cost = torch.sum(q_lens * k_lens).item() if torch.is_tensor(q_lens) else 0
+            batch_cost = b * lq * lk
+            print(f"[Attention] Computation: actual={actual_cost:.0f}, batch={batch_cost:.0f}, "
+                  f"ratio={actual_cost/batch_cost:.2f}")
 
     def half(x):
         return x if x.dtype in half_dtypes else x.to(dtype)
@@ -262,50 +283,59 @@ def flash_attention(
         # Use PyTorch's optimized SDPA (Scaled Dot Product Attention)
         # OPTIMIZATION: Per-sample SDPA for variable lengths (if beneficial)
         use_per_sample = False
-        if q_lens is not None and k_lens is not None:
-            # Check if variable length optimization would help
-            # Only use if sequences have significant length variation
-            if b > 1 and torch.max(q_lens) > torch.min(q_lens) * 1.5:
+        if q_lens is not None and k_lens is not None and b > 1:
+            # Better heuristic: compare actual computation cost
+            # Σ(L_i^2) vs B * L_max^2
+            actual_cost = torch.sum(q_lens * k_lens).item()
+            batch_cost = b * lq * lk
+            # Use per-sample if it saves >30% computation
+            if actual_cost < 0.7 * batch_cost:
                 use_per_sample = True
+                if not _attention_warning_shown:
+                    cost_ratio = actual_cost / batch_cost
+                    print(f"[Attention] Using per-sample SDPA (cost ratio: {cost_ratio:.2f})")
         
         if use_per_sample and q_lens is not None and k_lens is not None:
-            # Per-sample SDPA: O(Σ L_i^2) instead of O(B * L_max^2)
-            # Process each sample separately with its actual length
+            # OPTIMIZED: Per-sample SDPA with minimal overhead
+            # Direct reshape to [B, H, L, D] format for SDPA
             q = q.unflatten(0, (b, lq))  # [B, Lq, Nq, C1]
             k = k.unflatten(0, (b, lk))  # [B, Lk, Nk, C1]
             v = v.unflatten(0, (b, lk))  # [B, Lk, Nk, C2]
             
-            outputs = []
+            # Pre-allocate output tensor
+            output_shape = (b, q.size(2), lq, v.size(-1))
+            x = torch.zeros(output_shape, dtype=v.dtype, device=v.device)
+            
+            # Process each sample with its actual length
             for i in range(b):
                 q_len = int(q_lens[i])
                 k_len = int(k_lens[i])
                 
-                # Extract valid portions only
-                q_i = q[i:i+1, :q_len].transpose(0, 1)  # [Nq, q_len, C1]
-                k_i = k[i:i+1, :k_len].transpose(0, 1)  # [Nk, k_len, C1]
-                v_i = v[i:i+1, :k_len].transpose(0, 1)  # [Nk, k_len, C2]
+                # Skip if full length (no benefit)
+                if q_len == lq and k_len == lk:
+                    # Process full sequence
+                    q_i = q[i:i+1].transpose(1, 2)  # [1, Nq, Lq, C1]
+                    k_i = k[i:i+1].transpose(1, 2)  # [1, Nk, Lk, C1]
+                    v_i = v[i:i+1].transpose(1, 2)  # [1, Nk, Lk, C2]
+                else:
+                    # Extract and transpose valid portions only
+                    q_i = q[i:i+1, :q_len].transpose(1, 2)  # [1, Nq, q_len, C1]
+                    k_i = k[i:i+1, :k_len].transpose(1, 2)  # [1, Nk, k_len, C1]
+                    v_i = v[i:i+1, :k_len].transpose(1, 2)  # [1, Nk, k_len, C2]
                 
-                # Run SDPA on actual length only
-                with torch.backends.cuda.sdp_kernel(
-                    enable_flash=False,
-                    enable_math=True,
-                    enable_mem_efficient=True
-                ):
-                    out_i = torch.nn.functional.scaled_dot_product_attention(
-                        q_i, k_i, v_i,
-                        attn_mask=None,
-                        dropout_p=0.0,  # No dropout in inference
-                        scale=softmax_scale,
-                        is_causal=causal
-                    )
+                # Run SDPA on actual/full length
+                out_i = torch.nn.functional.scaled_dot_product_attention(
+                    q_i, k_i, v_i,
+                    attn_mask=None,
+                    dropout_p=0.0,  # No dropout in inference
+                    scale=softmax_scale,
+                    is_causal=causal
+                )
                 
-                # Pad back to max length
-                out_padded = torch.zeros((1, lq, out_i.size(1), out_i.size(2)), 
-                                        dtype=out_i.dtype, device=out_i.device)
-                out_padded[0, :q_len] = out_i.transpose(0, 1)
-                outputs.append(out_padded)
+                # Place result directly in output tensor
+                x[i, :, :out_i.size(2), :] = out_i[0]
             
-            x = torch.cat(outputs, dim=0).transpose(1, 2)  # [B, Nq, Lq, C2]
+            # x is already in [B, Nq, Lq, C2] format
         else:
             # Standard path: Process all at once (faster when lengths are similar)
             # Efficient reshape: unflatten and transpose in one go

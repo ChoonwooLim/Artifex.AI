@@ -19,7 +19,10 @@
       "Bash(do echo \"=== $dir ===\")",
       "Bash(du:*)",
       "Bash(done)",
-      "Bash(where generate.py)"
+      "Bash(where generate.py)",
+      "Bash(SET WAN_FORCE_FP16=1)",
+      "Bash(SET WAN_COMPILE=1)",
+      "Bash(WAN_FORCE_FP16=1 WAN_COMPILE=1 npm start)"
     ],
     "deny": [],
     "ask": [],
