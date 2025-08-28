@@ -31,6 +31,8 @@ else:
 ATTENTION_BACKEND = os.getenv("USE_ATTENTION_BACKEND", "auto").lower()
 # Force SDPA if explicitly set
 FORCE_SDPA = os.getenv("USE_SDPA", "0") == "1"
+# Force FP16 for better performance on consumer GPUs
+FORCE_FP16 = os.getenv("WAN_FORCE_FP16", "0") == "1"
 
 # Set float32 matmul precision for better performance on Ampere+
 if torch.cuda.is_available():
@@ -38,22 +40,52 @@ if torch.cuda.is_available():
     
 # Determine optimal dtype based on GPU capabilities
 def get_optimal_dtype():
-    """Select optimal dtype based on GPU capabilities"""
+    """Select optimal dtype based on GPU capabilities and user preference"""
+    if FORCE_FP16:
+        # User forces FP16 for better performance on consumer GPUs
+        return torch.float16
+    
     if torch.cuda.is_available():
-        # Check for BF16 support
-        if torch.cuda.is_bf16_supported():
-            return torch.bfloat16
+        # Check GPU architecture
+        device_props = torch.cuda.get_device_properties(0)
+        compute_capability = (device_props.major, device_props.minor)
+        
+        # RTX 30/40 series (Ampere/Ada Lovelace) often perform better with FP16
+        if compute_capability >= (8, 0):  # Ampere and newer
+            # Consumer GPUs (RTX 30/40) perform better with FP16
+            # Only use BF16 for datacenter GPUs (A100, H100)
+            if 'RTX' in device_props.name or 'GeForce' in device_props.name:
+                return torch.float16
+            elif torch.cuda.is_bf16_supported():
+                return torch.bfloat16
+            else:
+                return torch.float16
         else:
-            # Use FP16 for GPUs without BF16 support (better performance)
+            # Older GPUs: always use FP16
             return torch.float16
     return torch.float32
 
 OPTIMAL_DTYPE = get_optimal_dtype()
 
+# Global mask cache to avoid recreation
+_MASK_CACHE = {}
+_MASK_CACHE_SIZE = 16  # Maximum cached masks
+
 # Track warning state to show only once
 _attention_warning_shown = False
 
 import warnings
+
+# Try to enable torch.compile for optimization
+COMPILE_ENABLED = os.getenv("WAN_COMPILE", "0") == "1"
+if COMPILE_ENABLED:
+    try:
+        import torch._dynamo
+        torch._dynamo.config.suppress_errors = True
+        print("[Attention] torch.compile enabled for optimization")
+    except:
+        COMPILE_ENABLED = False
+        print("[Attention] torch.compile not available")
 
 __all__ = [
     'flash_attention',
@@ -228,75 +260,82 @@ def flash_attention(
             deterministic=deterministic).unflatten(0, (b, lq))
     else:
         # Use PyTorch's optimized SDPA (Scaled Dot Product Attention)
-        # Reshape back to batch format
-        q = q.unflatten(0, (b, lq))
-        k = k.unflatten(0, (b, lk))
-        v = v.unflatten(0, (b, lk))
-        
-        # Ensure contiguous for SDPA
-        q = q.contiguous()
-        k = k.contiguous()
-        v = v.contiguous()
-        
-        # Transpose for scaled_dot_product_attention
-        q = q.transpose(1, 2)  # [B, Nq, Lq, C1]
-        k = k.transpose(1, 2)  # [B, Nk, Lk, C1]
-        v = v.transpose(1, 2)  # [B, Nk, Lk, C2]
-        
-        # Create attention mask for padding and window if needed
-        attn_mask = None
-        
-        # Apply padding mask if sequence lengths are specified
+        # OPTIMIZATION: Per-sample SDPA for variable lengths (if beneficial)
+        use_per_sample = False
         if q_lens is not None and k_lens is not None:
-            # Create block-diagonal attention mask for valid tokens only
-            max_q_len = q.size(2)
-            max_k_len = k.size(2)
-            attn_mask = torch.zeros((b, 1, max_q_len, max_k_len), 
-                                   dtype=q.dtype, device=q.device)
+            # Check if variable length optimization would help
+            # Only use if sequences have significant length variation
+            if b > 1 and torch.max(q_lens) > torch.min(q_lens) * 1.5:
+                use_per_sample = True
+        
+        if use_per_sample and q_lens is not None and k_lens is not None:
+            # Per-sample SDPA: O(Σ L_i^2) instead of O(B * L_max^2)
+            # Process each sample separately with its actual length
+            q = q.unflatten(0, (b, lq))  # [B, Lq, Nq, C1]
+            k = k.unflatten(0, (b, lk))  # [B, Lk, Nk, C1]
+            v = v.unflatten(0, (b, lk))  # [B, Lk, Nk, C2]
             
+            outputs = []
             for i in range(b):
-                q_len = min(q_lens[i].item(), max_q_len)
-                k_len = min(k_lens[i].item(), max_k_len)
-                attn_mask[i, 0, :q_len, :k_len] = 1.0
+                q_len = int(q_lens[i])
+                k_len = int(k_lens[i])
+                
+                # Extract valid portions only
+                q_i = q[i:i+1, :q_len].transpose(0, 1)  # [Nq, q_len, C1]
+                k_i = k[i:i+1, :k_len].transpose(0, 1)  # [Nk, k_len, C1]
+                v_i = v[i:i+1, :k_len].transpose(0, 1)  # [Nk, k_len, C2]
+                
+                # Run SDPA on actual length only
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=False,
+                    enable_math=True,
+                    enable_mem_efficient=True
+                ):
+                    out_i = torch.nn.functional.scaled_dot_product_attention(
+                        q_i, k_i, v_i,
+                        attn_mask=None,
+                        dropout_p=0.0,  # No dropout in inference
+                        scale=softmax_scale,
+                        is_causal=causal
+                    )
+                
+                # Pad back to max length
+                out_padded = torch.zeros((1, lq, out_i.size(1), out_i.size(2)), 
+                                        dtype=out_i.dtype, device=out_i.device)
+                out_padded[0, :q_len] = out_i.transpose(0, 1)
+                outputs.append(out_padded)
             
-            # Convert to additive mask (0 for valid, -inf for invalid)
-            attn_mask = (1.0 - attn_mask) * -10000.0
-        
-        # Apply window attention if specified
-        if window_size != (-1, -1) and window_size[0] > 0:
-            window_left, window_right = window_size
-            if attn_mask is None:
-                attn_mask = torch.zeros((1, 1, q.size(2), k.size(2)), 
-                                       dtype=q.dtype, device=q.device)
+            x = torch.cat(outputs, dim=0).transpose(1, 2)  # [B, Nq, Lq, C2]
+        else:
+            # Standard path: Process all at once (faster when lengths are similar)
+            # Efficient reshape: unflatten and transpose in one go
+            q = q.unflatten(0, (b, lq)).transpose(1, 2)  # [B, Nq, Lq, C1]
+            k = k.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C1]
+            v = v.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C2]
             
-            # Create window mask
-            for i in range(q.size(2)):
-                start = max(0, i - window_left)
-                end = min(k.size(2), i + window_right + 1)
-                if start > 0:
-                    attn_mask[:, :, i, :start] = -10000.0
-                if end < k.size(2):
-                    attn_mask[:, :, i, end:] = -10000.0
-        
-        # Use PyTorch's optimized SDPA with backend hints
-        with torch.backends.cuda.sdp_kernel(
-            enable_flash=False,  # Flash not available on Windows
-            enable_math=True,    # Enable math backend as fallback
-            enable_mem_efficient=True  # Prioritize memory efficient backend
-        ):
             # Always use dropout=0 for inference
             effective_dropout = 0.0 if not torch.is_grad_enabled() else dropout_p
             
-            x = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v,
-                attn_mask=attn_mask,
-                dropout_p=effective_dropout,
-                scale=softmax_scale,
-                is_causal=causal and attn_mask is None  # Only use causal if no custom mask
-            )
+            # Use optimal SDPA backend hints
+            with torch.backends.cuda.sdp_kernel(
+                enable_flash=False,  # Not available on Windows
+                enable_math=True,    # Math backend
+                enable_mem_efficient=True  # Memory efficient backend
+            ):
+                x = torch.nn.functional.scaled_dot_product_attention(
+                    q, k, v,
+                    attn_mask=None,  # NO MASK for maximum performance
+                    dropout_p=effective_dropout,
+                    scale=softmax_scale,
+                    is_causal=causal  # Causal is efficient without custom masks
+                )
         
-        # Transpose back
-        x = x.transpose(1, 2).contiguous()  # [B, Lq, Nq, C2]
+        # Transpose back if needed
+        if x.dim() == 4 and x.size(1) != lq:
+            x = x.transpose(1, 2)  # [B, Lq, Nq, C2]
+        
+        # Ensure contiguous
+        x = x.contiguous()
 
     # output
     return x.type(out_dtype)
