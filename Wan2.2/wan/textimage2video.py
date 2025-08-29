@@ -171,7 +171,7 @@ class WanTI2V:
                  guide_scale=5.0,
                  n_prompt="",
                  seed=-1,
-                 offload_model=True):
+                 offload_model=False):  # WELL optimization: Changed to False
         r"""
         Generates video frames from text prompt using diffusion process.
 
@@ -198,8 +198,8 @@ class WanTI2V:
                 Negative prompt for content exclusion. If not given, use `config.sample_neg_prompt`
             seed (`int`, *optional*, defaults to -1):
                 Random seed for noise generation. If -1, use random seed.
-            offload_model (`bool`, *optional*, defaults to True):
-                If True, offloads models to CPU during generation to save VRAM
+            offload_model (`bool`, *optional*, defaults to False):
+                If True, offloads models to CPU during generation to save VRAM. False is faster on Windows
 
         Returns:
             torch.Tensor:
@@ -246,7 +246,7 @@ class WanTI2V:
             guide_scale=5.0,
             n_prompt="",
             seed=-1,
-            offload_model=True):
+            offload_model=False):  # WELL optimization: Changed to False
         r"""
         Generates video frames from text prompt using diffusion process.
 
@@ -269,8 +269,8 @@ class WanTI2V:
                 Negative prompt for content exclusion. If not given, use `config.sample_neg_prompt`
             seed (`int`, *optional*, defaults to -1):
                 Random seed for noise generation. If -1, use random seed.
-            offload_model (`bool`, *optional*, defaults to True):
-                If True, offloads models to CPU during generation to save VRAM
+            offload_model (`bool`, *optional*, defaults to False):
+                If True, offloads models to CPU during generation to save VRAM. False is faster on Windows
 
         Returns:
             torch.Tensor:
@@ -421,7 +421,7 @@ class WanTI2V:
             guide_scale=5.0,
             n_prompt="",
             seed=-1,
-            offload_model=True):
+            offload_model=False):  # WELL optimization: Changed to False
         r"""
         Generates video frames from input image and text prompt using diffusion process.
 
@@ -447,8 +447,8 @@ class WanTI2V:
                 Negative prompt for content exclusion. If not given, use `config.sample_neg_prompt`
             seed (`int`, *optional*, defaults to -1):
                 Random seed for noise generation. If -1, use random seed
-            offload_model (`bool`, *optional*, defaults to True):
-                If True, offloads models to CPU during generation to save VRAM
+            offload_model (`bool`, *optional*, defaults to False):
+                If True, offloads models to CPU during generation to save VRAM. False is faster on Windows
 
         Returns:
             torch.Tensor:

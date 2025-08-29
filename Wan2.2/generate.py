@@ -262,7 +262,7 @@ def generate(args):
     _init_logging(rank)
 
     if args.offload_model is None:
-        args.offload_model = False if world_size > 1 else True
+        args.offload_model = False  # WELL optimization: Always False for Windows performance
         logging.info(
             f"offload_model is not specified, set to {args.offload_model}.")
     if world_size > 1:

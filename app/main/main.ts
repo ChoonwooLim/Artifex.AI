@@ -87,7 +87,11 @@ ipcMain.handle('wan:run', async (_evt, payload: RunArgs) => {
         ...process.env,
         PYTHONPATH: scriptDir,  // Add script directory to PYTHONPATH
         PYTHONIOENCODING: 'utf-8',
-        PYTHONUTF8: '1'
+        PYTHONUTF8: '1',
+        // WELL optimization: Force FP16 and compile for Windows performance
+        WAN_FORCE_FP16: '1',
+        WAN_COMPILE: '1',
+        PYTORCH_CUDA_ALLOC_CONF: 'expandable_segments:True'
       }
     });
     currentJob = child;
