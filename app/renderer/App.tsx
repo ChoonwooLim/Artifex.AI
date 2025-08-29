@@ -7,7 +7,6 @@ import VideoExport from './workflow/VideoExport';
 import CinematicControls from './workflow/CinematicControls';
 import Flow from './workflow/Flow';
 import SimpleFlow from './workflow/SimpleFlow';
-import T2I from './t2i';
 
 declare global {
   interface Window {
@@ -34,7 +33,7 @@ declare global {
 }
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 't2i'>('wan');
+  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node'>('wan');
   const [isAnimated, setIsAnimated] = useState(false);
 
   // WAN generation states
@@ -101,8 +100,7 @@ const App: React.FC = () => {
     { id: 'effects', label: 'Effects', icon: '✨' },
     { id: 'cinematic', label: 'Cinematic', icon: '🎥' },
     { id: 'export', label: 'Export', icon: '📤' },
-    { id: 'flow', label: 'WAN Flow', icon: '🌊' },
-    { id: 't2i', label: 'Text to Image', icon: '🖼️' }
+    { id: 'flow', label: 'WAN Flow', icon: '🌊' }
   ];
 
   const estText = useMemo(() => {
@@ -924,7 +922,6 @@ const App: React.FC = () => {
           {activeView === 'export' && <VideoExport />}
           {activeView === 'cinematic' && <CinematicControls />}
           {activeView === 'flow' && <Flow />}
-          {activeView === 't2i' && <T2I />}
         </div>
       </div>
 

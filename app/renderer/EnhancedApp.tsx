@@ -43,16 +43,18 @@ declare global {
 // WAN Generation Core - 기존 기능 100% 유지
 const WANGenerationCore: React.FC = () => {
   // 기존 main.tsx의 모든 state와 기능 유지
-  const [task, setTask] = useState<'t2v-A14B' | 'i2v-A14B' | 'ti2v-5B'>('ti2v-5B');
-  const SIZE_OPTIONS: Record<'t2v-A14B' | 'i2v-A14B' | 'ti2v-5B', string[]> = {
+  const [task, setTask] = useState<'t2v-A14B' | 'i2v-A14B' | 'ti2v-5B' | 's2v-14B'>('ti2v-5B');
+  const SIZE_OPTIONS: Record<'t2v-A14B' | 'i2v-A14B' | 'ti2v-5B' | 's2v-14B', string[]> = {
     't2v-A14B': ['480*832', '832*480', '1280*720', '720*1280'],
     'i2v-A14B': ['480*832', '832*480', '1280*720', '720*1280'],
-    'ti2v-5B': ['1280*704', '704*1280']
+    'ti2v-5B': ['1280*704', '704*1280'],
+    's2v-14B': ['720*1280', '1280*720', '480*832', '832*480']
   };
   const [size, setSize] = useState('1280*704');
   const [ckpt, setCkpt] = useState('');
   const [prompt, setPrompt] = useState('A cinematic sunset over mountain lake');
   const [imagePath, setImagePath] = useState('');
+  const [audioPath, setAudioPath] = useState('');
   const [pythonPath, setPythonPath] = useState('python');
   const [scriptPath, setScriptPath] = useState('');
   const [useOffload, setUseOffload] = useState(false);
@@ -77,6 +79,8 @@ const WANGenerationCore: React.FC = () => {
     let refArea = 480 * 832;
     if (task.includes('ti2v')) {
       baseSec = 540; baseSteps = 50; baseFrames = 121; refArea = 1280 * 704;
+    } else if (task.includes('s2v')) {
+      baseSec = 420; baseSteps = 40; baseFrames = 81; refArea = 720 * 1280;
     } else if (task.includes('t2v')) {
       if (size.includes('1280*720') || size.includes('720*1280')) { baseSec = 360; refArea = 1280 * 720; }
       else { baseSec = 180; refArea = 480 * 832; }
@@ -414,6 +418,7 @@ const WANGenerationCore: React.FC = () => {
                 <option value="t2v-A14B">Text to Video (14B)</option>
                 <option value="i2v-A14B">Image to Video (14B)</option>
                 <option value="ti2v-5B">Text+Image to Video (5B)</option>
+                <option value="s2v-14B">Speech to Video (14B)</option>
               </select>
               <label>Size</label>
               <select value={size} onChange={(e) => setSize(e.target.value)}
@@ -480,12 +485,30 @@ const WANGenerationCore: React.FC = () => {
                 <Button variant="ghost" size="sm" onClick={suggestOutputName}>Suggest</Button>
               </div>
 
-              <label>Image (I2V/TI2V)</label>
+              <label>Image (I2V/TI2V/S2V)</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input style={{ flex: 1, padding: theme.spacing.sm, background: theme.colors.backgroundTertiary, border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.sm, color: theme.colors.text, outline: 'none' }} value={imagePath} onChange={(e) => setImagePath(e.target.value)} />
                 <Button variant="ghost" size="sm" onClick={pickImage}>Browse</Button>
                 <Button variant="ghost" size="sm" onClick={validateImg}>Validate</Button>
               </div>
+              
+              {task === 's2v-14B' && (
+                <>
+                  <label>Audio (S2V)</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input 
+                      style={{ flex: 1, padding: theme.spacing.sm, background: theme.colors.backgroundTertiary, border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.sm, color: theme.colors.text, outline: 'none' }} 
+                      value={audioPath} 
+                      onChange={(e) => setAudioPath(e.target.value)} 
+                      placeholder="Path to audio file (WAV/MP3)" 
+                    />
+                    <Button variant="ghost" size="sm" onClick={async () => {
+                      const path = await window.wanApi.openFile([{ name: 'Audio', extensions: ['wav', 'mp3', 'mp4', 'ogg'] }]);
+                      if (path) setAudioPath(path);
+                    }}>Browse</Button>
+                  </div>
+                </>
+              )}
               <label>Python path</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input style={{ flex: 1, padding: theme.spacing.sm, background: theme.colors.backgroundTertiary, border: `1px solid ${theme.colors.border}`, borderRadius: theme.borderRadius.sm, color: theme.colors.text, outline: 'none' }} value={pythonPath} onChange={(e) => setPythonPath(e.target.value)} />
@@ -668,7 +691,7 @@ export const EnhancedApp: React.FC = () => {
               <h1>Model Manager Coming Soon</h1>
             </div>
           )}
-          {!['gen-t2v', 'gen-i2v', 'gen-ti2v', 'gen-batch', 'dashboard', 'editor', 'effects', 'models'].includes(activeView) && (
+          {!['gen-t2v', 'gen-i2v', 'gen-ti2v', 'gen-s2v', 'gen-batch', 'dashboard', 'editor', 'effects', 'models'].includes(activeView) && (
             <WANGenerationCore key="default" />
           )}
         </AnimatePresence>

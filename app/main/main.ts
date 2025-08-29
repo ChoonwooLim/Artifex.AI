@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu, globalShortcut, clipboard, session } from 'electron';
 import path from 'node:path';
 import { spawn, ChildProcessWithoutNullStreams, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -8,19 +8,86 @@ import { appUpdater } from './updater';
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
 
+// Window state management
+function getWindowState() {
+  const settingsPath = path.join(app.getPath('userData'), 'window-state.json');
+  try {
+    if (existsSync(settingsPath)) {
+      return JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    }
+  } catch (e) {
+    console.error('Failed to load window state:', e);
+  }
+  return {
+    width: 1400,
+    height: 900,
+    x: undefined,
+    y: undefined,
+    isMaximized: false,
+    isFullScreen: false
+  };
+}
+
+function saveWindowState() {
+  if (!mainWindow) return;
+  
+  const state = {
+    ...mainWindow.getBounds(),
+    isMaximized: mainWindow.isMaximized(),
+    isFullScreen: mainWindow.isFullScreen()
+  };
+  
+  const settingsPath = path.join(app.getPath('userData'), 'window-state.json');
+  try {
+    writeFileSync(settingsPath, JSON.stringify(state, null, 2));
+  } catch (e) {
+    console.error('Failed to save window state:', e);
+  }
+}
+
 function createWindow() {
+  const windowState = getWindowState();
+  
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
+    minWidth: 800,
+    minHeight: 600,
     title: 'Artifex AI Studio',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     icon: process.platform === 'win32' 
       ? path.join(__dirname, '../build-resources/icon.ico')
       : undefined,
+    backgroundColor: '#1a1a1a',
+    show: false, // Show window after loading
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      spellcheck: true
     }
+  });
+  
+  // Restore window state
+  if (windowState.isMaximized) {
+    mainWindow.maximize();
+  }
+  if (windowState.isFullScreen) {
+    mainWindow.setFullScreen(true);
+  }
+  
+  // Show window when ready
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
+  
+  // Save window state on close
+  mainWindow.on('close', () => {
+    saveWindowState();
   });
 
   // 자동 업데이트 설정
@@ -31,12 +98,333 @@ function createWindow() {
     {
       label: 'File',
       submenu: [
+        {
+          label: 'New Project',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            mainWindow?.webContents.send('menu-new-project');
+          }
+        },
+        {
+          label: 'Open Project...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            mainWindow?.webContents.send('menu-open-project');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            mainWindow?.webContents.send('menu-save');
+          }
+        },
+        {
+          label: 'Save As...',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => {
+            mainWindow?.webContents.send('menu-save-as');
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Clear Cache',
+          click: async () => {
+            const session = mainWindow?.webContents.session;
+            if (session) {
+              await session.clearCache();
+              await session.clearStorageData();
+              dialog.showMessageBox(mainWindow!, {
+                type: 'info',
+                title: 'Cache Cleared',
+                message: 'Application cache has been cleared successfully.',
+                buttons: ['OK']
+              });
+            }
+          }
+        },
+        {
+          label: 'Reset Application',
+          click: async () => {
+            const result = await dialog.showMessageBox(mainWindow!, {
+              type: 'warning',
+              title: 'Reset Application',
+              message: 'Are you sure you want to reset the application? This will clear all settings and cache.',
+              buttons: ['Cancel', 'Reset'],
+              defaultId: 0,
+              cancelId: 0
+            });
+            if (result.response === 1) {
+              const session = mainWindow?.webContents.session;
+              if (session) {
+                await session.clearCache();
+                await session.clearStorageData();
+                await session.clearAuthCache();
+                app.relaunch();
+                app.exit();
+              }
+            }
+          }
+        },
+        { type: 'separator' },
         { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'pasteAndMatchStyle' },
+        { role: 'delete' },
+        { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Find',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => {
+            mainWindow?.webContents.send('menu-find');
+          }
+        }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Reload',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => {
+            mainWindow?.webContents.reload();
+          }
+        },
+        {
+          label: 'Force Reload',
+          accelerator: 'CmdOrCtrl+Shift+R',
+          click: () => {
+            mainWindow?.webContents.reloadIgnoringCache();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Toggle Developer Tools',
+          accelerator: process.platform === 'darwin' ? 'Alt+Command+I' : 'Ctrl+Shift+I',
+          click: () => {
+            mainWindow?.webContents.toggleDevTools();
+          }
+        },
+        {
+          label: 'Toggle Fullscreen',
+          accelerator: 'F11',
+          click: () => {
+            const isFullScreen = mainWindow?.isFullScreen();
+            mainWindow?.setFullScreen(!isFullScreen);
+          }
+        },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        {
+          label: 'Toggle Sidebar',
+          accelerator: 'CmdOrCtrl+B',
+          click: () => {
+            mainWindow?.webContents.send('menu-toggle-sidebar');
+          }
+        }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'close' },
+        { type: 'separator' },
+        {
+          label: 'Always on Top',
+          type: 'checkbox',
+          checked: false,
+          click: (menuItem) => {
+            mainWindow?.setAlwaysOnTop(menuItem.checked);
+          }
+        }
+      ]
+    },
+    {
+      label: 'Developer',
+      submenu: [
+        {
+          label: 'Open DevTools',
+          accelerator: 'F12',
+          click: () => {
+            mainWindow?.webContents.openDevTools();
+          }
+        },
+        {
+          label: 'Open DevTools (Detached)',
+          click: () => {
+            mainWindow?.webContents.openDevTools({ mode: 'detach' });
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Inspect Element',
+          accelerator: 'CmdOrCtrl+Shift+C',
+          click: () => {
+            mainWindow?.webContents.inspectElement(0, 0);
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Show App Data Path',
+          click: () => {
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: 'App Data Path',
+              message: 'Application Data Path',
+              detail: app.getPath('userData'),
+              buttons: ['Copy', 'OK'],
+            }).then(result => {
+              if (result.response === 0) {
+                require('electron').clipboard.writeText(app.getPath('userData'));
+              }
+            });
+          }
+        },
+        {
+          label: 'Show Logs Path',
+          click: () => {
+            const logsPath = path.join(app.getPath('userData'), 'logs');
+            shell.openPath(logsPath);
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Clear Session Data',
+          click: async () => {
+            const session = mainWindow?.webContents.session;
+            if (session) {
+              await session.clearStorageData();
+              dialog.showMessageBox(mainWindow!, {
+                type: 'info',
+                title: 'Session Cleared',
+                message: 'Session data has been cleared.',
+                buttons: ['OK']
+              });
+            }
+          }
+        },
+        {
+          label: 'Clear Auth Cache',
+          click: async () => {
+            const session = mainWindow?.webContents.session;
+            if (session) {
+              await session.clearAuthCache();
+              dialog.showMessageBox(mainWindow!, {
+                type: 'info',
+                title: 'Auth Cache Cleared',
+                message: 'Authentication cache has been cleared.',
+                buttons: ['OK']
+              });
+            }
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'GPU Information',
+          click: () => {
+            const gpuInfo = app.getGPUInfo('complete');
+            gpuInfo.then(info => {
+              dialog.showMessageBox(mainWindow!, {
+                type: 'info',
+                title: 'GPU Information',
+                message: 'GPU Details',
+                detail: JSON.stringify(info, null, 2),
+                buttons: ['OK']
+              });
+            });
+          }
+        },
+        {
+          label: 'System Information',
+          click: () => {
+            const sysInfo = {
+              'Platform': process.platform,
+              'Architecture': process.arch,
+              'Node Version': process.version,
+              'Electron Version': process.versions.electron,
+              'Chrome Version': process.versions.chrome,
+              'V8 Version': process.versions.v8,
+              'App Version': app.getVersion(),
+              'App Path': app.getAppPath(),
+              'User Data': app.getPath('userData')
+            };
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: 'System Information',
+              message: 'System Details',
+              detail: Object.entries(sysInfo).map(([k, v]) => `${k}: ${v}`).join('\n'),
+              buttons: ['Copy', 'OK']
+            }).then(result => {
+              if (result.response === 0) {
+                require('electron').clipboard.writeText(JSON.stringify(sysInfo, null, 2));
+              }
+            });
+          }
+        }
       ]
     },
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Documentation',
+          click: () => {
+            shell.openExternal('https://github.com/your-repo/docs');
+          }
+        },
+        {
+          label: 'Keyboard Shortcuts',
+          click: () => {
+            const shortcuts = [
+              'General:',
+              '  Ctrl+N - New Project',
+              '  Ctrl+O - Open Project',
+              '  Ctrl+S - Save',
+              '  Ctrl+Shift+S - Save As',
+              '  Ctrl+Q - Quit',
+              '',
+              'View:',
+              '  Ctrl+R - Reload',
+              '  Ctrl+Shift+R - Force Reload',
+              '  F11 - Toggle Fullscreen',
+              '  Ctrl+B - Toggle Sidebar',
+              '  Ctrl+Plus - Zoom In',
+              '  Ctrl+Minus - Zoom Out',
+              '  Ctrl+0 - Reset Zoom',
+              '',
+              'Developer:',
+              '  F12 - Open DevTools',
+              '  Ctrl+Shift+I - Toggle DevTools',
+              '  Ctrl+Shift+C - Inspect Element'
+            ].join('\n');
+            
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: 'Keyboard Shortcuts',
+              message: 'Available Shortcuts',
+              detail: shortcuts,
+              buttons: ['OK']
+            });
+          }
+        },
+        { type: 'separator' },
         {
           label: 'Check for Updates...',
           click: () => {
@@ -44,13 +432,20 @@ function createWindow() {
           }
         },
         {
+          label: 'Report Issue',
+          click: () => {
+            shell.openExternal('https://github.com/your-repo/issues');
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'About',
           click: () => {
             dialog.showMessageBox(mainWindow!, {
               type: 'info',
               title: 'About Artifex AI Studio',
               message: 'Artifex AI Studio',
-              detail: `Version: ${app.getVersion()}\nPowered by WAN 2.2 AI Model\n\n© 2025 Artifex AI`,
+              detail: `Version: ${app.getVersion()}\nPowered by WAN 2.2 AI Models\n\nFeatures:\n- Text to Video (T2V-14B)\n- Image to Video (I2V-14B)\n- Text+Image to Video (TI2V-5B)\n- Speech to Video (S2V-14B)\n\n© 2025 Artifex AI`,
               buttons: ['OK']
             });
           }
@@ -68,12 +463,118 @@ function createWindow() {
     mainWindow.loadFile(prodIndex);
   }
 
-  if (process.env.VITE_DEV_SERVER) {
+  // Enable DevTools in development
+  if (process.env.VITE_DEV_SERVER || process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
+  
+  // Register global shortcuts
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Prevent refresh in production
+    if (!process.env.VITE_DEV_SERVER && (input.key === 'F5' || (input.control && input.key === 'r'))) {
+      event.preventDefault();
+    }
+  });
+  
+  // Handle window closed
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
+// Context menu handler
+ipcMain.on('show-context-menu', (event) => {
+  const template = [
+    {
+      label: 'Cut',
+      accelerator: 'CmdOrCtrl+X',
+      role: 'cut' as const,
+    },
+    {
+      label: 'Copy',
+      accelerator: 'CmdOrCtrl+C',
+      role: 'copy' as const,
+    },
+    {
+      label: 'Paste',
+      accelerator: 'CmdOrCtrl+V',
+      role: 'paste' as const,
+    },
+    { type: 'separator' as const },
+    {
+      label: 'Select All',
+      accelerator: 'CmdOrCtrl+A',
+      role: 'selectAll' as const,
+    },
+    { type: 'separator' as const },
+    {
+      label: 'Reload',
+      accelerator: 'CmdOrCtrl+R',
+      click: () => {
+        mainWindow?.webContents.reload();
+      }
+    },
+    {
+      label: 'Toggle DevTools',
+      accelerator: 'F12',
+      click: () => {
+        mainWindow?.webContents.toggleDevTools();
+      }
+    },
+    { type: 'separator' as const },
+    {
+      label: 'Inspect Element',
+      click: () => {
+        mainWindow?.webContents.inspectElement(event.x as any, event.y as any);
+      }
+    }
+  ];
+  
+  const menu = Menu.buildFromTemplate(template);
+  menu.popup({ window: BrowserWindow.fromWebContents(event.sender)! });
+});
+
+// Performance monitoring
+ipcMain.handle('get-performance-info', async () => {
+  const metrics = app.getAppMetrics();
+  const gpuInfo = await app.getGPUInfo('complete');
+  return {
+    metrics,
+    gpuInfo,
+    memory: process.memoryUsage(),
+    cpu: process.cpuUsage()
+  };
+});
+
+// Session management
+ipcMain.handle('clear-all-data', async () => {
+  const ses = session.defaultSession;
+  await ses.clearCache();
+  await ses.clearStorageData();
+  await ses.clearAuthCache();
+  return { success: true };
+});
+
+ipcMain.handle('get-cache-size', async () => {
+  const ses = session.defaultSession;
+  const size = await ses.getCacheSize();
+  return size;
+});
+
 app.whenReady().then(() => {
+  // Register global shortcuts
+  globalShortcut.register('CommandOrControl+Shift+D', () => {
+    if (mainWindow) {
+      mainWindow.webContents.toggleDevTools();
+    }
+  });
+  
+  globalShortcut.register('CommandOrControl+Shift+R', () => {
+    if (mainWindow) {
+      mainWindow.webContents.reloadIgnoringCache();
+    }
+  });
+  
   createWindow();
   
   // 앱 시작 후 업데이트 체크 (5초 후)
@@ -87,8 +588,48 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // Unregister all shortcuts
+  globalShortcut.unregisterAll();
+  
+  // Save window state before quitting
+  saveWindowState();
+  
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
+
+app.on('before-quit', () => {
+  // Clean up any running processes
+  if (currentJob) {
+    currentJob.kill();
+  }
+});
+
+// Handle app crashes and errors
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  dialog.showErrorBox('Unexpected Error', `An unexpected error occurred: ${error.message}`);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Someone tried to run a second instance, focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 type RunArgs = {
   pythonPath: string;
@@ -229,6 +770,7 @@ ipcMain.handle('wan:suggestCkpt', async (_e, task: string) => {
     if (task.startsWith('t2v')) return ['Wan2.2-T2V-A14B', 'T2V', 't2v'];
     if (task.startsWith('i2v')) return ['Wan2.2-I2V-A14B', 'I2V', 'i2v'];
     if (task.startsWith('ti2v')) return ['Wan2.2-TI2V-5B', 'TI2V', 'ti2v'];
+    if (task.startsWith('s2v')) return ['Wan2.2-S2V-14B', 'S2V', 's2v'];
     return ['Wan2.2'];
   })();
 
@@ -253,8 +795,10 @@ ipcMain.handle('wan:suggestCkpt', async (_e, task: string) => {
   }
   // Prefer exact folder names when present
   const nameOrder = {
-    'ti2v-5b': 3,
-    'wan2.2-ti2v-5b': 3,
+    'ti2v-5b': 4,
+    'wan2.2-ti2v-5b': 4,
+    's2v-14b': 3,
+    'wan2.2-s2v-14b': 3,
     'i2v-a14b': 2,
     'wan2.2-i2v-a14b': 2,
     't2v-a14b': 1,

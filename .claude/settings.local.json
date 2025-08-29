@@ -24,7 +24,12 @@
       "Bash(npm run dev:*)",
       "Bash(npm install:*)",
       "Bash(timeout:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(taskkill:*)",
+      "Bash(cross-env VITE_PORT=5174 npm run dev)",
+      "Bash(grep:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": [],

@@ -23,4 +23,14 @@ contextBridge.exposeInMainWorld('wanApi', {
 contextBridge.exposeInMainWorld('electronAPI', {
   generateS2V: (formData: any) => ipcRenderer.invoke('electronAPI:generateS2V', formData),
   saveVideo: (videoPath: string) => ipcRenderer.invoke('electronAPI:saveVideo', videoPath),
+  showContextMenu: () => ipcRenderer.send('show-context-menu'),
+  getPerformanceInfo: () => ipcRenderer.invoke('get-performance-info'),
+  clearAllData: () => ipcRenderer.invoke('clear-all-data'),
+  getCacheSize: () => ipcRenderer.invoke('get-cache-size'),
+});
+
+// Setup context menu on right click
+window.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  ipcRenderer.send('show-context-menu', { x: e.x, y: e.y });
 });
