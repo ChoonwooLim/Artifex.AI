@@ -33,7 +33,7 @@ declare global {
 }
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node'>('wan');
+  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 's2v'>('wan');
   const [isAnimated, setIsAnimated] = useState(false);
 
   // WAN generation states
@@ -95,6 +95,7 @@ const App: React.FC = () => {
 
   const navItems = [
     { id: 'wan', label: 'WAN Generate', icon: '🎬' },
+    { id: 's2v', label: 'Speech to Video', icon: '🎙️' },
     { id: 'editor', label: 'Node Editor', icon: '🎨' },
     { id: 'timeline', label: 'Timeline', icon: '⏱️' },
     { id: 'effects', label: 'Effects', icon: '✨' },
@@ -325,144 +326,96 @@ const App: React.FC = () => {
   return (
     <div style={{ 
       display: 'flex', 
-      flexDirection: 'column', 
       height: '100vh',
       background: 'linear-gradient(180deg, #0f0f1e 0%, #1a1a2e 100%)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     }}>
+      {/* 왼쪽 사이드바 */}
       <div style={{
+        width: '240px',
+        background: 'rgba(20,20,30,0.95)',
+        borderRight: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
-        background: 'linear-gradient(90deg, rgba(30,30,60,0.95) 0%, rgba(40,40,80,0.95) 100%)',
-        backdropFilter: 'blur(20px)',
-        padding: '16px 24px',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        position: 'relative',
-        overflow: 'hidden'
+        flexDirection: 'column',
+        backdropFilter: 'blur(10px)'
       }}>
         <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '2px',
-          background: 'linear-gradient(90deg, #00ffff, #ff00ff, #ffff00, #00ffff)',
-          backgroundSize: '200% 100%',
-          animation: 'gradient 3s ease infinite'
-        }}/>
-        
-        <div style={{ 
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          opacity: isAnimated ? 1 : 0,
-          transform: isAnimated ? 'translateX(0)' : 'translateX(-20px)',
-          transition: 'all 0.6s ease-out'
+          padding: '20px',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
         }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '700',
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            boxShadow: '0 4px 12px rgba(102,126,234,0.4)',
-            animation: 'pulse 2s ease-in-out infinite'
-          }}>
-            🎬
-          </div>
-          <div>
-            <h1 style={{ 
-              fontSize: '28px', 
-              fontWeight: '800',
-              background: 'linear-gradient(135deg, #fff 0%, #e0e0e0 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              margin: 0,
-              letterSpacing: '-0.5px'
-            }}>
-              WAN 2.2 Professional
-            </h1>
-            <p style={{
-              fontSize: '12px',
-              color: 'rgba(255,255,255,0.6)',
-              margin: 0,
-              marginTop: '2px',
-              letterSpacing: '1px',
-              textTransform: 'uppercase'
-            }}>
-              AI Video Creation Suite
-            </p>
-          </div>
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            margin: 0
+          }}>Artifex AI Studio</h2>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>WAN 2.2 Professional</p>
         </div>
-
-        <nav style={{ 
-          display: 'flex', 
-          gap: '4px',
-          background: 'rgba(0,0,0,0.2)',
-          padding: '4px',
-          borderRadius: '12px'
-        }}>
-          {navItems.map((item, index) => (
+        
+        <nav style={{ flex: 1, padding: '10px' }}>
+          {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setActiveView(item.id as any)}
               style={{
-                padding: '10px 20px',
-                background: activeView === item.id 
-                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                  : 'transparent',
-                color: activeView === item.id ? '#fff' : 'rgba(255,255,255,0.7)',
+                width: '100%',
+                padding: '12px 16px',
+                marginBottom: '4px',
+                background: activeView === item.id ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+                color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
-                fontWeight: '600',
                 cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                fontSize: '14px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                opacity: isAnimated ? 1 : 0,
-                transform: isAnimated ? 'translateY(0)' : 'translateY(-10px)',
-                transitionDelay: `${index * 0.05}s`,
-                position: 'relative',
-                overflow: 'hidden'
+                gap: '12px',
+                fontSize: '14px',
+                fontWeight: activeView === item.id ? '600' : '400',
+                transition: 'all 0.2s ease',
+                opacity: activeView === item.id ? 1 : 0.7
               }}
               onMouseEnter={(e) => {
                 if (activeView !== item.id) {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                  e.currentTarget.style.opacity = '1';
                 }
               }}
               onMouseLeave={(e) => {
                 if (activeView !== item.id) {
                   e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.opacity = '0.7';
                 }
               }}
             >
-              <span style={{ fontSize: '16px' }}>{item.icon}</span>
+              <span style={{ fontSize: '18px' }}>{item.icon}</span>
               <span>{item.label}</span>
-              {activeView === item.id && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '2px',
-                  background: 'linear-gradient(90deg, transparent, #fff, transparent)',
-                  animation: 'shimmer 2s ease-in-out infinite'
-                }}/>
-              )}
             </button>
           ))}
         </nav>
+        
+        <div style={{
+          padding: '20px',
+          borderTop: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <div style={{
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.4)',
+            textAlign: 'center'
+          }}>
+            Version 2.2.0
+          </div>
+        </div>
       </div>
       
+      {/* 메인 컨텐츠 영역 */}
+      <div style={{ 
+        flex: 1,
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
       <div style={{ 
         flex: 1, 
         overflow: 'auto',
@@ -922,6 +875,167 @@ const App: React.FC = () => {
           {activeView === 'export' && <VideoExport />}
           {activeView === 'cinematic' && <CinematicControls />}
           {activeView === 'flow' && <Flow />}
+          {activeView === 's2v' && (
+            <div style={{ padding: '24px' }}>
+              <h2 style={{ 
+                fontSize: '24px', 
+                marginBottom: '20px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontWeight: '700'
+              }}>Speech to Video</h2>
+              <div style={{ 
+                background: 'rgba(255,255,255,0.03)',
+                padding: '24px',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>참조 이미지 (Reference Image)</label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      style={{ 
+                        width: '100%', 
+                        padding: '10px', 
+                        background: 'rgba(255,255,255,0.1)', 
+                        border: '1px solid rgba(255,255,255,0.2)', 
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>오디오 파일 (Audio File)</label>
+                    <input 
+                      type="file" 
+                      accept="audio/*" 
+                      style={{ 
+                        width: '100%', 
+                        padding: '10px', 
+                        background: 'rgba(255,255,255,0.1)', 
+                        border: '1px solid rgba(255,255,255,0.2)', 
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>프롬프트 (Prompt)</label>
+                  <textarea 
+                    placeholder="A person speaking naturally with clear lip sync..."
+                    style={{ 
+                      width: '100%', 
+                      height: '100px', 
+                      padding: '12px', 
+                      background: 'rgba(255,255,255,0.05)', 
+                      border: '1px solid rgba(255,255,255,0.1)', 
+                      borderRadius: '8px', 
+                      resize: 'vertical',
+                      color: '#fff',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>FPS</label>
+                    <select style={{ 
+                      width: '100%', 
+                      padding: '10px', 
+                      background: 'rgba(255,255,255,0.1)', 
+                      border: '1px solid rgba(255,255,255,0.2)', 
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}>
+                      <option value="8">8 FPS</option>
+                      <option value="12">12 FPS</option>
+                      <option value="16" selected>16 FPS</option>
+                      <option value="24">24 FPS</option>
+                      <option value="30">30 FPS</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>프레임 수</label>
+                    <input 
+                      type="number" 
+                      defaultValue="80" 
+                      min="4" 
+                      max="240" 
+                      step="4"
+                      style={{ 
+                        width: '100%', 
+                        padding: '10px', 
+                        background: 'rgba(255,255,255,0.1)', 
+                        border: '1px solid rgba(255,255,255,0.2)', 
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>샘플링 스텝</label>
+                    <input 
+                      type="number" 
+                      defaultValue="40" 
+                      min="10" 
+                      max="100"
+                      style={{ 
+                        width: '100%', 
+                        padding: '10px', 
+                        background: 'rgba(255,255,255,0.1)', 
+                        border: '1px solid rgba(255,255,255,0.2)', 
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '14px'
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                <button 
+                  style={{ 
+                    padding: '14px 32px', 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                    color: '#fff', 
+                    border: 'none', 
+                    borderRadius: '12px', 
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: '0 4px 16px rgba(102,126,234,0.3)',
+                    letterSpacing: '0.5px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(102,126,234,0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,126,234,0.3)';
+                  }}
+                  onClick={() => alert('S2V 생성 기능은 WAN Generate 메뉴에서 Task를 S2V-14B로 선택하여 사용하세요.')}
+                >
+                  🎬 Generate Speech Video
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -984,6 +1098,7 @@ const App: React.FC = () => {
           accent-color: #667eea;
         }
       `}</style>
+      </div>
     </div>
   );
 };
