@@ -97,7 +97,7 @@ const App: React.FC = () => {
     const frameNum = 4 * n + 1;
     a.push('--frame_num', String(frameNum));
     a.push('--sample_steps', String(stepsState ?? (task.includes('ti2v') ? 50 : 40)));
-    a.push('--fps_override', String(fps));
+    // fps_override removed - not supported in well branch
     return a;
   }, [task, size, ckpt, prompt, imagePath, useOffload, useConvertDtype, useT5Cpu, lengthSec, fps, stepsState]);
 

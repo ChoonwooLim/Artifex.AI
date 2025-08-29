@@ -227,4 +227,33 @@ def measure_step(fn, warmup=2, iters=10):
 
 VRAM 최고치는 `torch.cuda.max_memory_allocated()/1e9`를 측정 바운더리마다 `reset_peak_memory_stats()`와 함께 활용하세요.
 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+[info] Output will be saved to: D:\work\Artifex.AI\output\새 폴더\q1.mp4
+[2025-08-29 12:19:57,604] INFO: offload_model is not specified, set to True.
+[2025-08-29 12:19:57,604] INFO: Generation job args: Namespace(task='ti2v-5B', size='1280*704', frame_num=121, ckpt_dir='D:\\work\\Artifex.AI\\Wan2.2-TI2V-5B', offload_model=True, ulysses_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='D:\\work\\Artifex.AI\\output\\새 폴더\\q1.mp4', prompt='A cinematic sunset over mountain lake', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=7027874542372879868, image='E:\\StabilityMatrix\\Data\\Images\\Text2Img\\2025-06-12\\00110-2411132797.png', sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, convert_model_dtype=True, num_clip=None, audio=None, pose_video=None, start_from_ref=False, infer_frames=80)
+[2025-08-29 12:19:57,604] INFO: Generation model config: {'__name__': 'Config: Wan TI2V 5B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 24, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 'frame_num': 121, 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.2_VAE.pth', 'vae_stride': (4, 16, 16), 'patch_size': (1, 2, 2), 'dim': 3072, 'ffn_dim': 14336, 'freq_dim': 256, 'num_heads': 24, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06, 'sample_shift': 5.0, 'sample_steps': 50, 'sample_guide_scale': 5.0}
+[2025-08-29 12:19:57,604] INFO: Input prompt: A cinematic sunset over mountain lake
+[2025-08-29 12:19:57,627] INFO: Input image: E:\StabilityMatrix\Data\Images\Text2Img\2025-06-12\00110-2411132797.png
+[2025-08-29 12:19:57,627] INFO: Creating WanTI2V pipeline.
+[2025-08-29 12:20:56,699] INFO: loading D:\work\Artifex.AI\Wan2.2-TI2V-5B\models_t5_umt5-xxl-enc-bf16.pth
+[2025-08-29 12:21:01,638] INFO: loading D:\work\Artifex.AI\Wan2.2-TI2V-5B\Wan2.2_VAE.pth
+[2025-08-29 12:21:03,744] INFO: Creating WanModel from D:\work\Artifex.AI\Wan2.2-TI2V-5B
+
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:00<00:00, 37.14it/s]
+[2025-08-29 12:21:03,962] WARNING: A matching Triton is not available, some optimizations will not be enabled
+Traceback (most recent call last):
+  File "C:\Users\choon\AppData\Local\Programs\Python\Python312\Lib\site-packages\xformers\__init__.py", line 57, in _is_triton_available
+    import triton  # noqa
+    ^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'triton'
+[2025-08-29 12:21:12,898] INFO: Generating video ...
+
+  0%|          | 0/50 [00:00<?, ?it/s]
+  2%|▏         | 1/50 [00:22<18:02, 22.08s/it]
+  4%|▍         | 2/50 [00:43<17:35, 21.98s/it]
+  6%|▌         | 3/50 [01:06<17:22, 22.17s/it]
+  8%|▊         | 4/50 [01:28<16:51, 21.99s/it]
+ 10%|█         | 5/50 [01:50<16:28, 21.96s/it]
+ 12%|█▏        | 6/50 [02:12<16:09, 22.04s/it]

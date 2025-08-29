@@ -317,3 +317,85 @@ FPS: 24
 ---
 
 **Note**: 이 구현은 Windows 11 + RTX GPU 환경에서 최적화되었으며, 다른 환경에서는 성능 특성이 다를 수 있습니다.
+
+======================+++++++++++++++++++++++++++=======================
+실제 실행 로그내용 (5초, 24FPS, 50step,1280*504, TI2V-5B)
+
+[info] Output will be saved to: D:\work\Artifex.AI\output\새 폴더\q1.mp4
+[2025-08-29 12:19:57,604] INFO: offload_model is not specified, set to True.
+[2025-08-29 12:19:57,604] INFO: Generation job args: Namespace(task='ti2v-5B', size='1280*704', frame_num=121, ckpt_dir='D:\\work\\Artifex.AI\\Wan2.2-TI2V-5B', offload_model=True, ulysses_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='D:\\work\\Artifex.AI\\output\\새 폴더\\q1.mp4', prompt='A cinematic sunset over mountain lake', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=7027874542372879868, image='E:\\StabilityMatrix\\Data\\Images\\Text2Img\\2025-06-12\\00110-2411132797.png', sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, convert_model_dtype=True, num_clip=None, audio=None, pose_video=None, start_from_ref=False, infer_frames=80)
+[2025-08-29 12:19:57,604] INFO: Generation model config: {'__name__': 'Config: Wan TI2V 5B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 24, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 'frame_num': 121, 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.2_VAE.pth', 'vae_stride': (4, 16, 16), 'patch_size': (1, 2, 2), 'dim': 3072, 'ffn_dim': 14336, 'freq_dim': 256, 'num_heads': 24, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06, 'sample_shift': 5.0, 'sample_steps': 50, 'sample_guide_scale': 5.0}
+[2025-08-29 12:19:57,604] INFO: Input prompt: A cinematic sunset over mountain lake
+[2025-08-29 12:19:57,627] INFO: Input image: E:\StabilityMatrix\Data\Images\Text2Img\2025-06-12\00110-2411132797.png
+[2025-08-29 12:19:57,627] INFO: Creating WanTI2V pipeline.
+[2025-08-29 12:20:56,699] INFO: loading D:\work\Artifex.AI\Wan2.2-TI2V-5B\models_t5_umt5-xxl-enc-bf16.pth
+[2025-08-29 12:21:01,638] INFO: loading D:\work\Artifex.AI\Wan2.2-TI2V-5B\Wan2.2_VAE.pth
+[2025-08-29 12:21:03,744] INFO: Creating WanModel from D:\work\Artifex.AI\Wan2.2-TI2V-5B
+
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:00<00:00, 37.14it/s]
+[2025-08-29 12:21:03,962] WARNING: A matching Triton is not available, some optimizations will not be enabled
+Traceback (most recent call last):
+  File "C:\Users\choon\AppData\Local\Programs\Python\Python312\Lib\site-packages\xformers\__init__.py", line 57, in _is_triton_available
+    import triton  # noqa
+    ^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'triton'
+[2025-08-29 12:21:12,898] INFO: Generating video ...
+
+  0%|          | 0/50 [00:00<?, ?it/s]
+  2%|▏         | 1/50 [00:22<18:02, 22.08s/it]
+  4%|▍         | 2/50 [00:43<17:35, 21.98s/it]
+  6%|▌         | 3/50 [01:06<17:22, 22.17s/it]
+  8%|▊         | 4/50 [01:28<16:51, 21.99s/it]
+ 10%|█         | 5/50 [01:50<16:28, 21.96s/it]
+ 12%|█▏        | 6/50 [02:12<16:09, 22.04s/it]
+ 14%|█▍        | 7/50 [02:34<15:47, 22.03s/it]
+ 16%|█▌        | 8/50 [02:59<16:12, 23.15s/it]
+ 18%|█▊        | 9/50 [03:23<16:02, 23.49s/it]
+ 20%|██        | 10/50 [03:46<15:22, 23.07s/it]
+ 22%|██▏       | 11/50 [04:08<14:54, 22.93s/it]
+ 24%|██▍       | 12/50 [04:50<18:11, 28.72s/it]
+ 26%|██▌       | 13/50 [05:26<18:57, 30.75s/it]
+ 28%|██▊       | 14/50 [05:49<17:09, 28.59s/it]
+ 30%|███       | 15/50 [06:14<16:05, 27.58s/it]
+ 32%|███▏      | 16/50 [06:36<14:40, 25.90s/it]
+ 34%|███▍      | 17/50 [07:49<21:54, 39.82s/it]
+ 36%|███▌      | 18/50 [08:16<19:11, 36.00s/it]
+ 38%|███▊      | 19/50 [08:39<16:40, 32.29s/it]
+ 40%|████      | 20/50 [09:07<15:25, 30.84s/it]
+ 42%|████▏     | 21/50 [09:43<15:44, 32.57s/it]
+ 44%|████▍     | 22/50 [10:07<13:56, 29.87s/it]
+ 46%|████▌     | 23/50 [10:30<12:34, 27.95s/it]
+ 48%|████▊     | 24/50 [10:52<11:19, 26.15s/it]
+ 50%|█████     | 25/50 [11:14<10:21, 24.84s/it]
+ 52%|█████▏    | 26/50 [11:36<09:34, 23.94s/it]
+ 54%|█████▍    | 27/50 [11:58<08:56, 23.33s/it]
+ 56%|█████▌    | 28/50 [12:23<08:47, 23.97s/it]
+ 58%|█████▊    | 29/50 [12:51<08:47, 25.10s/it]
+ 60%|██████    | 30/50 [13:15<08:13, 24.67s/it]
+ 62%|██████▏   | 31/50 [13:41<07:55, 25.04s/it]
+ 64%|██████▍   | 32/50 [14:07<07:38, 25.45s/it]
+ 66%|██████▌   | 33/50 [14:33<07:12, 25.41s/it]
+ 68%|██████▊   | 34/50 [14:58<06:45, 25.37s/it]
+ 70%|███████   | 35/50 [15:23<06:20, 25.36s/it]
+ 72%|███████▏  | 36/50 [15:45<05:40, 24.29s/it]
+ 74%|███████▍  | 37/50 [16:07<05:06, 23.56s/it]
+ 76%|███████▌  | 38/50 [16:31<04:43, 23.63s/it]
+ 78%|███████▊  | 39/50 [17:00<04:38, 25.36s/it]
+ 80%|████████  | 40/50 [17:25<04:13, 25.34s/it]
+ 82%|████████▏ | 41/50 [17:49<03:43, 24.80s/it]
+ 84%|████████▍ | 42/50 [18:11<03:11, 23.97s/it]
+ 86%|████████▌ | 43/50 [18:33<02:43, 23.34s/it]
+ 88%|████████▊ | 44/50 [18:55<02:17, 22.89s/it]
+ 90%|█████████ | 45/50 [19:16<01:52, 22.58s/it]
+ 92%|█████████▏| 46/50 [19:38<01:29, 22.35s/it]
+ 94%|█████████▍| 47/50 [20:00<01:06, 22.19s/it]
+ 96%|█████████▌| 48/50 [20:22<00:44, 22.07s/it]
+ 98%|█████████▊| 49/50 [20:54<00:25, 25.06s/it]
+100%|██████████| 50/50 [21:20<00:00, 25.44s/it]
+100%|██████████| 50/50 [21:20<00:00, 25.61s/it]
+[2025-08-29 12:50:14,691] INFO: Saving generated video to D:\work\Artifex.AI\output\새 폴더\q1.mp4
+[2025-08-29 12:50:16,534] INFO: [progress] saved=D:\work\Artifex.AI\output\새 폴더\q1.mp4
+[2025-08-29 12:50:16,535] INFO: Finished.
+
+[closed] code=0
