@@ -384,49 +384,304 @@ const App: React.FC = () => {
   const [mode, setMode] = useState<'simple' | 'node' | 't2i'>('simple');
 
   return (
-    <div style={{ padding: 16, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' }}>
-      <h2>Wan2.2 Desktop</h2>
-      <div style={{ position: 'sticky', top: 0, background: '#fff', padding: '6px 0', zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 320, height: 10, background: '#eee', borderRadius: 5, overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', background: '#4caf50', transition: 'width 0.5s' }} />
+    <div style={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(180deg, #0f0f1e 0%, #1a1a2e 100%)',
+      color: '#fff',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    }}>
+      <div style={{
+        background: 'linear-gradient(90deg, rgba(30,30,60,0.95) 0%, rgba(40,40,80,0.95) 100%)',
+        backdropFilter: 'blur(20px)',
+        padding: '20px 24px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '2px',
+          background: 'linear-gradient(90deg, #00ffff, #ff00ff, #ffff00, #00ffff)',
+          backgroundSize: '200% 100%',
+          animation: 'gradient 3s ease infinite'
+        }}/>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              boxShadow: '0 4px 12px rgba(102,126,234,0.4)'
+            }}>🎬</div>
+            <div>
+              <h1 style={{ 
+                fontSize: '28px', 
+                fontWeight: '800',
+                background: 'linear-gradient(135deg, #fff 0%, #e0e0e0 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                margin: 0,
+                letterSpacing: '-0.5px'
+              }}>WAN 2.2 Professional</h1>
+              <p style={{
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.7)',
+                margin: 0,
+                marginTop: '2px',
+                letterSpacing: '0.5px'
+              }}>AI Video Generation Suite</p>
+            </div>
           </div>
-          <span style={{ fontWeight: 600 }}>{phase}</span>
-          {eta && <span>ETA {eta}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              padding: '8px 16px',
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '20px',
+              fontSize: '14px',
+              color: 'rgba(255,255,255,0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>{phase}</span>
+              {phase === 'Generating' && <span style={{
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                background: '#4ade80',
+                borderRadius: '50%',
+                animation: 'pulse 2s ease-in-out infinite'
+              }}/>}
+            </div>
+            {eta && <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>ETA: {eta}</span>}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ flex: 1, height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ 
+              width: `${progress}%`, 
+              height: '100%', 
+              background: 'linear-gradient(90deg, #667eea, #764ba2)', 
+              transition: 'width 0.5s',
+              boxShadow: '0 0 10px rgba(102,126,234,0.5)'
+            }} />
+          </div>
+          <span style={{ 
+            minWidth: '45px', 
+            textAlign: 'right', 
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#667eea'
+          }}>{progress}%</span>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <button onClick={saveSettings}>Save defaults</button>
-        <button onClick={() => setMode('simple')}>Simple</button>
-        <button onClick={() => setMode('node')}>Node</button>
-        <button onClick={() => setMode('t2i')}>T2I</button>
-        <button onClick={quickMode}>빠른 모드</button>
-      </div>
+      
+      <div style={{ padding: '24px' }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          marginBottom: '24px',
+          background: 'rgba(255,255,255,0.05)',
+          padding: '8px',
+          borderRadius: '12px',
+          width: 'fit-content'
+        }}>
+          <button 
+            onClick={saveSettings}
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s',
+              boxShadow: '0 2px 8px rgba(102,126,234,0.3)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >💾 Save Defaults</button>
+          <button 
+            onClick={() => setMode('simple')}
+            style={{
+              padding: '10px 20px',
+              background: mode === 'simple' ? 'rgba(102,126,234,0.3)' : 'rgba(255,255,255,0.1)',
+              color: '#fff',
+              border: '1px solid',
+              borderColor: mode === 'simple' ? '#667eea' : 'rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s'
+            }}
+          >🎯 Simple</button>
+          <button 
+            onClick={() => setMode('node')}
+            style={{
+              padding: '10px 20px',
+              background: mode === 'node' ? 'rgba(102,126,234,0.3)' : 'rgba(255,255,255,0.1)',
+              color: '#fff',
+              border: '1px solid',
+              borderColor: mode === 'node' ? '#667eea' : 'rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s'
+            }}
+          >🔗 Node</button>
+          <button 
+            onClick={() => setMode('t2i')}
+            style={{
+              padding: '10px 20px',
+              background: mode === 't2i' ? 'rgba(102,126,234,0.3)' : 'rgba(255,255,255,0.1)',
+              color: '#fff',
+              border: '1px solid',
+              borderColor: mode === 't2i' ? '#667eea' : 'rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s'
+            }}
+          >🖼️ T2I</button>
+          <button 
+            onClick={quickMode}
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, #00d4ff, #00ff88)',
+              color: '#000',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s',
+              boxShadow: '0 2px 8px rgba(0,212,255,0.3)'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >⚡ 빠른 모드</button>
+        </div>
       {mode === 't2i' ? (
         <T2I />
       ) : mode === 'node' ? (
         <Flow />
       ) : (
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 200px 1fr', gap: 8, alignItems: 'center' }}>
-        <label>Task</label>
-        <select value={task} onChange={(e) => { const t = e.target.value as 't2v-A14B' | 'i2v-A14B' | 'ti2v-5B'; setTask(t); setSize(SIZE_OPTIONS[t][0]); }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '200px 1fr 200px 1fr', 
+        gap: '16px', 
+        alignItems: 'center',
+        background: 'rgba(255,255,255,0.03)',
+        padding: '24px',
+        borderRadius: '16px',
+        border: '1px solid rgba(255,255,255,0.05)'
+      }}>
+        <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>Task</label>
+        <select 
+          value={task} 
+          onChange={(e) => { const t = e.target.value as 't2v-A14B' | 'i2v-A14B' | 'ti2v-5B'; setTask(t); setSize(SIZE_OPTIONS[t][0]); }}
+          style={{
+            padding: '10px',
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}>
           <option value="t2v-A14B">t2v-A14B</option>
           <option value="i2v-A14B">i2v-A14B</option>
           <option value="ti2v-5B">ti2v-5B</option>
         </select>
-        <label>Size</label>
-        <select value={size} onChange={(e) => setSize(e.target.value)}>
+        <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>Size</label>
+        <select 
+          value={size} 
+          onChange={(e) => setSize(e.target.value)}
+          style={{
+            padding: '10px',
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}>
           {SIZE_OPTIONS[task].map((opt) => (<option key={opt} value={opt}>{opt}</option>))}
         </select>
 
-        <label>Checkpoint dir</label>
+        <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>Checkpoint dir</label>
         <div style={{ display: 'flex', gap: 6 }}>
-          <input style={{ flex: 1 }} value={ckpt} onChange={(e) => setCkpt(e.target.value)} />
-          <button onClick={pickCkpt}>Browse</button>
-          <button onClick={autoDetect}>Auto-detect</button>
+          <input 
+            style={{ 
+              flex: 1,
+              padding: '10px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              color: '#fff',
+              fontSize: '14px'
+            }} 
+            value={ckpt} 
+            onChange={(e) => setCkpt(e.target.value)} />
+          <button 
+            onClick={pickCkpt}
+            style={{
+              padding: '10px 16px',
+              background: 'rgba(102,126,234,0.2)',
+              color: '#fff',
+              border: '1px solid rgba(102,126,234,0.3)',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(102,126,234,0.3)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(102,126,234,0.2)'; }}
+          >Browse</button>
+          <button 
+            onClick={autoDetect}
+            style={{
+              padding: '10px 16px',
+              background: 'rgba(102,126,234,0.2)',
+              color: '#fff',
+              border: '1px solid rgba(102,126,234,0.3)',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '14px',
+              transition: 'all 0.3s'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(102,126,234,0.3)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(102,126,234,0.2)'; }}
+          >Auto-detect</button>
         </div>
-        <label>Prompt</label>
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>Prompt</label>
+        <input 
+          value={prompt} 
+          onChange={(e) => setPrompt(e.target.value)}
+          style={{
+            padding: '10px',
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '8px',
+            color: '#fff',
+            fontSize: '14px'
+          }} />
 
         <label>Length (sec)</label>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -485,11 +740,87 @@ const App: React.FC = () => {
       </div>
       )}
 
-      {mode === 'simple' && (<div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={run} disabled={running || disabled}>Run</button>
-        <button onClick={cancel} disabled={!running}>Cancel</button>
-        <button onClick={() => lastOutput && window.wanApi.showInFolder(lastOutput)} disabled={!lastOutput}>Open in folder</button>
-        <button onClick={() => lastOutput && window.wanApi.openPath(lastOutput)} disabled={!lastOutput}>Preview</button>
+      {mode === 'simple' && (<div style={{ 
+        marginTop: '24px', 
+        display: 'flex', 
+        gap: '12px', 
+        flexWrap: 'wrap', 
+        alignItems: 'center',
+        padding: '20px',
+        background: 'rgba(255,255,255,0.03)',
+        borderRadius: '12px',
+        border: '1px solid rgba(255,255,255,0.05)'
+      }}>
+        <button 
+          onClick={run} 
+          disabled={running || disabled}
+          style={{
+            padding: '12px 32px',
+            background: (running || disabled) ? 'rgba(100,100,100,0.3)' : 'linear-gradient(135deg, #667eea, #764ba2)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '10px',
+            fontWeight: '700',
+            cursor: (running || disabled) ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            transition: 'all 0.3s',
+            boxShadow: (running || disabled) ? 'none' : '0 4px 16px rgba(102,126,234,0.4)',
+            opacity: (running || disabled) ? 0.5 : 1
+          }}
+          onMouseEnter={(e) => { if (!running && !disabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
+        >🚀 Run</button>
+        <button 
+          onClick={cancel} 
+          disabled={!running}
+          style={{
+            padding: '12px 24px',
+            background: !running ? 'rgba(100,100,100,0.3)' : 'rgba(244,63,94,0.2)',
+            color: '#fff',
+            border: '1px solid',
+            borderColor: !running ? 'rgba(100,100,100,0.3)' : 'rgba(244,63,94,0.4)',
+            borderRadius: '10px',
+            fontWeight: '600',
+            cursor: !running ? 'not-allowed' : 'pointer',
+            fontSize: '15px',
+            transition: 'all 0.3s',
+            opacity: !running ? 0.5 : 1
+          }}
+        >❌ Cancel</button>
+        <button 
+          onClick={() => lastOutput && window.wanApi.showInFolder(lastOutput)} 
+          disabled={!lastOutput}
+          style={{
+            padding: '12px 24px',
+            background: !lastOutput ? 'rgba(100,100,100,0.3)' : 'rgba(255,255,255,0.1)',
+            color: '#fff',
+            border: '1px solid',
+            borderColor: !lastOutput ? 'rgba(100,100,100,0.3)' : 'rgba(255,255,255,0.2)',
+            borderRadius: '10px',
+            fontWeight: '600',
+            cursor: !lastOutput ? 'not-allowed' : 'pointer',
+            fontSize: '15px',
+            transition: 'all 0.3s',
+            opacity: !lastOutput ? 0.5 : 1
+          }}
+        >📁 Open in folder</button>
+        <button 
+          onClick={() => lastOutput && window.wanApi.openPath(lastOutput)} 
+          disabled={!lastOutput}
+          style={{
+            padding: '12px 24px',
+            background: !lastOutput ? 'rgba(100,100,100,0.3)' : 'rgba(255,255,255,0.1)',
+            color: '#fff',
+            border: '1px solid',
+            borderColor: !lastOutput ? 'rgba(100,100,100,0.3)' : 'rgba(255,255,255,0.2)',
+            borderRadius: '10px',
+            fontWeight: '600',
+            cursor: !lastOutput ? 'not-allowed' : 'pointer',
+            fontSize: '15px',
+            transition: 'all 0.3s',
+            opacity: !lastOutput ? 0.5 : 1
+          }}
+        >👁️ Preview</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 240, height: 8, background: '#eee', borderRadius: 4, overflow: 'hidden' }}>
             <div style={{ width: `${progress}%`, height: '100%', background: '#4caf50', transition: 'width 0.5s' }} />
@@ -499,12 +830,72 @@ const App: React.FC = () => {
         </div>
       </div>)}
 
-      {mode === 'simple' && (<div style={{ marginTop: 12 }}>
-        <textarea ref={logRef} style={{ width: '100%', height: 300, fontFamily: 'Consolas, monospace' }} readOnly />
+      {mode === 'simple' && (<div style={{ marginTop: '20px' }}>
+        <textarea 
+          ref={logRef} 
+          style={{ 
+            width: '100%', 
+            height: '300px', 
+            fontFamily: 'Consolas, monospace',
+            background: 'rgba(0,0,0,0.5)',
+            color: '#00ff88',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            padding: '16px',
+            fontSize: '13px',
+            lineHeight: '1.6',
+            resize: 'vertical'
+          }} 
+          readOnly />
         {lastOutput && (
-          <video src={lastOutput} style={{ width: '100%', marginTop: 10 }} controls />
+          <video 
+            src={lastOutput} 
+            style={{ 
+              width: '100%', 
+              marginTop: '20px',
+              borderRadius: '12px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }} 
+            controls />
         )}
       </div>)}
+      </div>
+      
+      <style>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        button:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(102,126,234,0.3);
+        }
+        select:focus, input:focus, textarea:focus {
+          outline: none;
+          border-color: rgba(102,126,234,0.5) !important;
+          box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        ::-webkit-scrollbar {
+          width: 10px;
+          height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+          background: rgba(255,255,255,0.05);
+          border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(102,126,234,0.3);
+          border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(102,126,234,0.5);
+        }
+      `}</style>
     </div>
   );
 };
