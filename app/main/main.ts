@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron';
 import path from 'node:path';
 import { spawn, ChildProcessWithoutNullStreams, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { appUpdater } from './updater';
 
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
@@ -11,12 +12,53 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    title: 'Artifex AI Studio',
+    icon: process.platform === 'win32' 
+      ? path.join(__dirname, '../build-resources/icon.ico')
+      : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false
     }
   });
+
+  // 자동 업데이트 설정
+  appUpdater.setMainWindow(mainWindow);
+
+  // 메뉴 설정
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            appUpdater.checkForUpdates();
+          }
+        },
+        {
+          label: 'About',
+          click: () => {
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: 'About Artifex AI Studio',
+              message: 'Artifex AI Studio',
+              detail: `Version: ${app.getVersion()}\nPowered by WAN 2.2 AI Model\n\n© 2025 Artifex AI`,
+              buttons: ['OK']
+            });
+          }
+        }
+      ]
+    }
+  ]);
+  Menu.setApplicationMenu(menu);
 
   const devUrl = process.env.ELECTRON_START_URL;
   if (devUrl) {
@@ -33,6 +75,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  
+  // 앱 시작 후 업데이트 체크 (5초 후)
+  setTimeout(() => {
+    appUpdater.checkForUpdates();
+  }, 5000);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

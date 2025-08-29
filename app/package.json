@@ -31,18 +31,31 @@
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "electron-updater": "^6.1.7"
   },
   "build": {
-    "appId": "com.artifex.ai",
-    "productName": "Artifex.AI",
+    "appId": "com.artifex.ai.wan22",
+    "productName": "Artifex AI Studio",
+    "copyright": "Copyright © 2025 Artifex AI",
     "directories": {
-      "output": "release"
+      "output": "dist-installer",
+      "buildResources": "build-resources"
     },
     "files": [
-      "dist/**",
-      "dist-electron/**",
-      "!node_modules/**/*"
+      "dist/**/*",
+      "dist-electron/**/*",
+      "python/**/*",
+      "!python/**/__pycache__",
+      "!python/**/*.pyc",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../Wan2.2",
+        "to": "wan22",
+        "filter": ["**/*", "!**/__pycache__", "!**/*.pyc", "!**/*.safetensors", "!**/*.pth"]
+      }
     ],
     "win": {
       "target": [
@@ -50,15 +63,39 @@
           "target": "nsis",
           "arch": ["x64"]
         }
-      ]
+      ],
+      "icon": "build-resources/icon.ico",
+      "certificateFile": null,
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "requireAdministrator"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Artifex.AI"
-    }
+      "shortcutName": "Artifex AI Studio",
+      "installerIcon": "build-resources/icon.ico",
+      "uninstallerIcon": "build-resources/icon.ico",
+      "installerHeaderIcon": "build-resources/icon.ico",
+      "license": "build-resources/license.txt",
+      "warningsAsErrors": false,
+      "menuCategory": true,
+      "artifactName": "ArtifexAI-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": true,
+      "installerLanguages": ["en_US", "ko_KR"],
+      "guid": "a8c7d3e4-2b5f-4d6e-9c1a-8f7e6d5c4b3a"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "artifex-ai",
+        "repo": "artifex-studio",
+        "releaseType": "release"
+      }
+    ]
   }
 }
