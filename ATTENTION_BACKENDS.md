@@ -1,9 +1,6 @@
-
 ## Attention Backend Strategy (Windows 11, CUDA)
 
 본 문서는 현재 레포에서 사용 중인 어텐션(Attention) 백엔드 선택/최적화 전략을 기록합니다. 목표는 Windows 11 환경(FlashAttention 미설치/미지원)에서도 안정적이고 빠른 추론 속도를 확보하는 것입니다.
-
-> 이 문서는 WELL 브랜치 문서의 “실전 가이드/벤치마크/트러블슈팅” 내용을 병합해 하나로 정리한 최종본입니다.
 
 ### 핵심 요약
 - 기본 백엔드: PyTorch SDPA(Scaled Dot-Product Attention)
@@ -57,12 +54,6 @@
   - xFormers 스타일: 중간 길이에서 효율적
 - 드롭아웃: 추론에서는 0 유지
 
-### WELL 방식 핵심(간명한 SDPA 경로)
-- FlashAttention은 완전히 우회하고, PyTorch Native SDPA만 사용
-- 텐서는 `[B, N, L, D]`로 정규화 후 SDPA 호출, 마스크/추가 전처리 최소화
-- 추론에서는 dropout=0, contiguous 유지, 불필요한 flatten/unflatten 제거
-- Windows에서 컴파일/의존성 문제를 피하고, 안정적으로 80~90% 수준의 성능 달성
-
 ### 로깅(최초 1회)
 - 백엔드, dtype, 모드(학습/추론), 텐서 크기, 드롭아웃, 실제 연산량/배치 연산량 비율 출력
 - 예시
@@ -89,13 +80,6 @@
 - 입력/모델 dtype 일치 유지(캐스팅 최소화). RTX 환경은 FP16 추천
 - 첫 스텝 지연이 클 때: 길이 분산/시퀀스 길이 확인 → Per-sample 경로 진입 여부 점검
 - 프레임/해상도를 절반으로 낮췄을 때 준선형 향상이 보이면 경로가 정상 동작 중
-
-### 트러블슈팅 체크리스트
-1. CUDA/드라이버 인식 여부 확인 (GPU/VRAM 표기, 오류 로그)
-2. dtype 일치 여부(FP16 권장, BF16은 데이터센터급에서)
-3. SDPA 힌트 적용 여부(로그 1회 출력 확인)
-4. 첫 스텝 과도 지연 시 길이 분산 확인 → Per-sample 분기 여부
-5. 메모리 부족 시 프레임/해상도/스텝 축소
 
 ### 변경 영향 요약
 - FlashAttention 없이도 Windows에서 안정적 추론 속도 확보
@@ -158,13 +142,6 @@ print(f"step took {elapsed:.1f} ms")
 ```
 
 프로파일링을 원하면 `torch.cuda.synchronize()`를 적절히 배치하고, `torch.profiler` 또는 Nsight Systems와 병행하세요.
-
-### GPU별 권장 설정(요약)
-| GPU | 권장 dtype | 비고 |
-|---|---|---|
-| RTX 30/40 (소비자용) | FP16 | TF32 허용, SDPA 기본 |
-| A100/H100 (데이터센터) | BF16 | SDPA 또는 FA3 가능 시 고려 |
-
 
 ---
 
@@ -250,4 +227,33 @@ def measure_step(fn, warmup=2, iters=10):
 
 VRAM 최고치는 `torch.cuda.max_memory_allocated()/1e9`를 측정 바운더리마다 `reset_peak_memory_stats()`와 함께 활용하세요.
 
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+[info] Output will be saved to: D:\work\Artifex.AI\output\새 폴더\q1.mp4
+[2025-08-29 12:19:57,604] INFO: offload_model is not specified, set to True.
+[2025-08-29 12:19:57,604] INFO: Generation job args: Namespace(task='ti2v-5B', size='1280*704', frame_num=121, ckpt_dir='D:\\work\\Artifex.AI\\Wan2.2-TI2V-5B', offload_model=True, ulysses_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='D:\\work\\Artifex.AI\\output\\새 폴더\\q1.mp4', prompt='A cinematic sunset over mountain lake', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=7027874542372879868, image='E:\\StabilityMatrix\\Data\\Images\\Text2Img\\2025-06-12\\00110-2411132797.png', sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, convert_model_dtype=True, num_clip=None, audio=None, pose_video=None, start_from_ref=False, infer_frames=80)
+[2025-08-29 12:19:57,604] INFO: Generation model config: {'__name__': 'Config: Wan TI2V 5B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 24, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 'frame_num': 121, 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.2_VAE.pth', 'vae_stride': (4, 16, 16), 'patch_size': (1, 2, 2), 'dim': 3072, 'ffn_dim': 14336, 'freq_dim': 256, 'num_heads': 24, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06, 'sample_shift': 5.0, 'sample_steps': 50, 'sample_guide_scale': 5.0}
+[2025-08-29 12:19:57,604] INFO: Input prompt: A cinematic sunset over mountain lake
+[2025-08-29 12:19:57,627] INFO: Input image: E:\StabilityMatrix\Data\Images\Text2Img\2025-06-12\00110-2411132797.png
+[2025-08-29 12:19:57,627] INFO: Creating WanTI2V pipeline.
+[2025-08-29 12:20:56,699] INFO: loading D:\work\Artifex.AI\Wan2.2-TI2V-5B\models_t5_umt5-xxl-enc-bf16.pth
+[2025-08-29 12:21:01,638] INFO: loading D:\work\Artifex.AI\Wan2.2-TI2V-5B\Wan2.2_VAE.pth
+[2025-08-29 12:21:03,744] INFO: Creating WanModel from D:\work\Artifex.AI\Wan2.2-TI2V-5B
+
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:00<00:00, 37.14it/s]
+[2025-08-29 12:21:03,962] WARNING: A matching Triton is not available, some optimizations will not be enabled
+Traceback (most recent call last):
+  File "C:\Users\choon\AppData\Local\Programs\Python\Python312\Lib\site-packages\xformers\__init__.py", line 57, in _is_triton_available
+    import triton  # noqa
+    ^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'triton'
+[2025-08-29 12:21:12,898] INFO: Generating video ...
+
+  0%|          | 0/50 [00:00<?, ?it/s]
+  2%|▏         | 1/50 [00:22<18:02, 22.08s/it]
+  4%|▍         | 2/50 [00:43<17:35, 21.98s/it]
+  6%|▌         | 3/50 [01:06<17:22, 22.17s/it]
+  8%|▊         | 4/50 [01:28<16:51, 21.99s/it]
+ 10%|█         | 5/50 [01:50<16:28, 21.96s/it]
+ 12%|█▏        | 6/50 [02:12<16:09, 22.04s/it]

@@ -29,36 +29,73 @@
     "vite": "^5.4.0"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
-    "date-fns": "^4.1.0",
-    "framer-motion": "^12.23.12",
-    "lucide-react": "^0.542.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "reactflow": "^11.11.4",
-    "recharts": "^3.1.2"
+    "electron-updater": "^6.1.7"
   },
   "build": {
-    "appId": "com.xx.wan22",
+    "appId": "com.artifex.ai.wan22",
+    "productName": "Artifex AI Studio",
+    "copyright": "Copyright © 2025 Artifex AI",
+    "directories": {
+      "output": "dist-installer",
+      "buildResources": "build-resources"
+    },
     "files": [
-      "dist/**",
-      "dist-electron/**",
-      "preload/**",
-      "renderer/**",
-      "main/**",
-      "scripts/**"
+      "dist/**/*",
+      "dist-electron/**/*",
+      "python/**/*",
+      "!python/**/__pycache__",
+      "!python/**/*.pyc",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../Wan2.2",
+        "to": "wan22",
+        "filter": ["**/*", "!**/__pycache__", "!**/*.pyc", "!**/*.safetensors", "!**/*.pth"]
+      }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
-      ]
-    }
+      ],
+      "icon": "build-resources/icon.ico",
+      "certificateFile": null,
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Artifex AI Studio",
+      "installerIcon": "build-resources/icon.ico",
+      "uninstallerIcon": "build-resources/icon.ico",
+      "installerHeaderIcon": "build-resources/icon.ico",
+      "license": "build-resources/license.txt",
+      "warningsAsErrors": false,
+      "menuCategory": true,
+      "artifactName": "ArtifexAI-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": true,
+      "installerLanguages": ["en_US", "ko_KR"],
+      "guid": "a8c7d3e4-2b5f-4d6e-9c1a-8f7e6d5c4b3a"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "artifex-ai",
+        "repo": "artifex-studio",
+        "releaseType": "release"
+      }
+    ]
   }
 }

@@ -18,7 +18,11 @@ import wan
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
 from wan.distributed.util import init_distributed_group
 from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
-from wan.utils.utils import merge_video_audio, save_video, str2bool
+from wan.utils.utils import save_video, str2bool
+try:
+    from wan.utils.utils import merge_video_audio
+except ImportError:
+    merge_video_audio = None  # s2v not supported in this branch
 
 EXAMPLE_PROMPT = {
     "t2v-A14B": {
@@ -262,7 +266,7 @@ def generate(args):
     _init_logging(rank)
 
     if args.offload_model is None:
-        args.offload_model = False  # WELL optimization: Always False for Windows performance
+        args.offload_model = False if world_size > 1 else True
         logging.info(
             f"offload_model is not specified, set to {args.offload_model}.")
     if world_size > 1:
@@ -468,7 +472,7 @@ def generate(args):
             nrow=1,
             normalize=True,
             value_range=(-1, 1))
-        if "s2v" in args.task:
+        if "s2v" in args.task and merge_video_audio is not None:
             merge_video_audio(video_path=args.save_file, audio_path=args.audio)
     del video
 

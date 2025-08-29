@@ -2,17 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import Flow from './workflow/Flow';
 import T2I from './t2i';
 import { createRoot } from 'react-dom/client';
-import { EnhancedApp } from './EnhancedApp';
-
-// 새로운 UI를 기본으로 사용
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<EnhancedApp />);
-}
-
-// Classic UI 코드는 아래에 보존 (사용하지 않음)
-if (false) {
 
 declare global {
   interface Window {
@@ -48,9 +37,9 @@ const App: React.FC = () => {
   const [imagePath, setImagePath] = useState('');
   const [pythonPath, setPythonPath] = useState('python');
   const [scriptPath, setScriptPath] = useState('');
-  const [useOffload, setUseOffload] = useState(false);
+  const [useOffload, setUseOffload] = useState(true);
   const [useConvertDtype, setUseConvertDtype] = useState(true);
-  const [useT5Cpu, setUseT5Cpu] = useState(false);
+  const [useT5Cpu, setUseT5Cpu] = useState(true);
   const [stepsState, setStepsState] = useState<number | null>(null);
   const [lengthSec, setLengthSec] = useState(5);
   const [fps, setFps] = useState(24);
@@ -100,8 +89,7 @@ const App: React.FC = () => {
     if (task !== 't2v-A14B' && imagePath) {
       a.push('--image', imagePath);
     }
-    // Always explicitly pass offload_model to prevent script default
-    a.push('--offload_model', useOffload ? 'True' : 'False');
+    if (useOffload) a.push('--offload_model', 'True');
     if (useConvertDtype) a.push('--convert_model_dtype');
     if (useT5Cpu) a.push('--t5_cpu');
     // frame_num = 4n+1, n = round(fps*length/4)
@@ -109,11 +97,7 @@ const App: React.FC = () => {
     const frameNum = 4 * n + 1;
     a.push('--frame_num', String(frameNum));
     a.push('--sample_steps', String(stepsState ?? (task.includes('ti2v') ? 50 : 40)));
-    a.push('--fps_override', String(fps));
-    // Add missing required parameters
-    a.push('--sample_guide_scale', '7.5');
-    a.push('--base_seed', '-1');
-    a.push('--sample_solver', 'dpm++');
+    // fps_override removed - not supported in well branch
     return a;
   }, [task, size, ckpt, prompt, imagePath, useOffload, useConvertDtype, useT5Cpu, lengthSec, fps, stepsState]);
 
@@ -375,8 +359,14 @@ const App: React.FC = () => {
     setLengthSec(3);
     setFps(16);
     setStepsState(30);
-    // Model offload and T5 CPU are now false by default
-    // Users can enable them manually if needed for lower VRAM GPUs
+    // conservative defaults; 사용가능 VRAM 높으면 사용자가 해제 가능
+    if (task.includes('ti2v')) {
+      setUseT5Cpu(true);
+      setUseOffload(true);
+    } else {
+      setUseT5Cpu(true);
+      setUseOffload(true);
+    }
   }, [task]);
 
   const suggestScript = useCallback(async () => {
@@ -520,7 +510,5 @@ const App: React.FC = () => {
 };
 
 createRoot(document.getElementById('root')!).render(<App />);
-
-} // Classic UI 종료
 
 

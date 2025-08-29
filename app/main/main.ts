@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron';
 import path from 'node:path';
 import { spawn, ChildProcessWithoutNullStreams, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { appUpdater } from './updater';
 
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
@@ -11,33 +12,53 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    title: 'Artifex.AI',
+    title: 'Artifex AI Studio',
+    icon: process.platform === 'win32' 
+      ? path.join(__dirname, '../build-resources/icon.ico')
+      : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
-      nodeIntegration: false,
-      webSecurity: false // Allow loading local files
+      nodeIntegration: false
     }
   });
 
-  // Set Content Security Policy for development
-  if (process.env.VITE_DEV_SERVER) {
-    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [`
-            default-src 'self' http://localhost:5173;
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173;
-            style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-            font-src 'self' https://fonts.gstatic.com data:;
-            img-src 'self' data: file: http: https:;
-            connect-src 'self' http://localhost:5173 ws://localhost:5173;
-          `.replace(/\s+/g, ' ')]
+  // 자동 업데이트 설정
+  appUpdater.setMainWindow(mainWindow);
+
+  // 메뉴 설정
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            appUpdater.checkForUpdates();
+          }
+        },
+        {
+          label: 'About',
+          click: () => {
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: 'About Artifex AI Studio',
+              message: 'Artifex AI Studio',
+              detail: `Version: ${app.getVersion()}\nPowered by WAN 2.2 AI Model\n\n© 2025 Artifex AI`,
+              buttons: ['OK']
+            });
+          }
         }
-      });
-    });
-  }
+      ]
+    }
+  ]);
+  Menu.setApplicationMenu(menu);
 
   const devUrl = process.env.ELECTRON_START_URL;
   if (devUrl) {
@@ -54,6 +75,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  
+  // 앱 시작 후 업데이트 체크 (5초 후)
+  setTimeout(() => {
+    appUpdater.checkForUpdates();
+  }, 5000);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -79,19 +106,13 @@ ipcMain.handle('wan:run', async (_evt, payload: RunArgs) => {
     if (!existsSync(scriptPath)) {
       return { ok: false, message: `Script not found: ${scriptPath}` };
     }
-    const scriptDir = path.dirname(scriptPath);
     const child = spawn(pythonPath, [scriptPath, ...args], {
-      cwd: cwd || scriptDir,
+      cwd: cwd || path.dirname(scriptPath),
       windowsHide: true,
       env: {
         ...process.env,
-        PYTHONPATH: scriptDir,  // Add script directory to PYTHONPATH
         PYTHONIOENCODING: 'utf-8',
-        PYTHONUTF8: '1',
-        // WELL optimization: Force FP16 and compile for Windows performance
-        WAN_FORCE_FP16: '1',
-        WAN_COMPILE: '1',
-        PYTORCH_CUDA_ALLOC_CONF: 'expandable_segments:True'
+        PYTHONUTF8: '1'
       }
     });
     currentJob = child;
