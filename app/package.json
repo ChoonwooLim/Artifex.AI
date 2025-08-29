@@ -34,24 +34,31 @@
     "reactflow": "^11.11.4"
   },
   "build": {
-    "appId": "com.xx.wan22",
+    "appId": "com.artifex.ai",
+    "productName": "Artifex.AI",
+    "directories": {
+      "output": "release"
+    },
     "files": [
       "dist/**",
       "dist-electron/**",
-      "preload/**",
-      "renderer/**",
-      "main/**",
-      "scripts/**"
+      "!node_modules/**/*"
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Artifex.AI"
     }
   }
 }
