@@ -389,3 +389,90 @@ ipcMain.handle('wan:gpuInfo', async (_e, pythonPath: string) => {
   }
 });
 
+// Speech to Video Generation API
+ipcMain.handle('electronAPI:generateS2V', async (_e, formData: any) => {
+  try {
+    const pythonPath = 'python';
+    const scriptPath = path.join(__dirname, '..', 'python', 's2v.py');
+    
+    // Create temp files for uploaded data
+    const tempDir = app.getPath('temp');
+    const imagePath = path.join(tempDir, `ref_${Date.now()}.jpg`);
+    const audioPath = path.join(tempDir, `audio_${Date.now()}.wav`);
+    
+    // Write files (in real implementation, handle FormData properly)
+    // This is a simplified version - actual implementation would handle multipart form data
+    
+    const params = {
+      reference_image: imagePath,
+      audio: audioPath,
+      ...formData
+    };
+    
+    // Execute Python script
+    const result = await new Promise((resolve, reject) => {
+      const child = spawn(pythonPath, [scriptPath], {
+        cwd: path.dirname(scriptPath)
+      });
+      
+      let output = '';
+      let error = '';
+      
+      child.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      child.stderr.on('data', (data) => {
+        error += data.toString();
+      });
+      
+      child.on('close', (code) => {
+        if (code === 0) {
+          try {
+            const lines = output.trim().split('\n');
+            const lastLine = lines[lines.length - 1];
+            const result = JSON.parse(lastLine);
+            resolve(result);
+          } catch (e) {
+            reject(new Error('Failed to parse output'));
+          }
+        } else {
+          reject(new Error(error || 'Process failed'));
+        }
+      });
+      
+      // Send generation command
+      child.stdin.write(JSON.stringify({
+        action: 'generate',
+        params: params
+      }) + '\n');
+    });
+    
+    return result;
+  } catch (error: any) {
+    return { success: false, error: error.message || String(error) };
+  }
+});
+
+ipcMain.handle('electronAPI:saveVideo', async (_e, videoPath: string) => {
+  try {
+    const result = await dialog.showSaveDialog({
+      defaultPath: path.basename(videoPath),
+      filters: [
+        { name: 'Video Files', extensions: ['mp4', 'avi', 'mov'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    
+    if (!result.canceled && result.filePath) {
+      const fs = require('fs').promises;
+      await fs.copyFile(videoPath, result.filePath);
+      return { success: true, savedPath: result.filePath };
+    }
+    
+    return { success: false, error: 'Save cancelled' };
+  } catch (error: any) {
+    return { success: false, error: error.message || String(error) };
+  }
+});
+

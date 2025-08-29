@@ -19,3 +19,8 @@ contextBridge.exposeInMainWorld('wanApi', {
   openPath: (path: string) => ipcRenderer.invoke('wan:openPath', path),
   gpuInfo: (pythonPath: string) => ipcRenderer.invoke('wan:gpuInfo', pythonPath),
 });
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  generateS2V: (formData: any) => ipcRenderer.invoke('electronAPI:generateS2V', formData),
+  saveVideo: (videoPath: string) => ipcRenderer.invoke('electronAPI:saveVideo', videoPath),
+});

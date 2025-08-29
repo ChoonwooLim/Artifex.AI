@@ -56,6 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeView, onViewChan
         { id: 't2v', label: 'Text to Video', view: 'gen-t2v' },
         { id: 'i2v', label: 'Image to Video', view: 'gen-i2v' },
         { id: 'ti2v', label: 'Text + Image to Video', view: 'gen-ti2v' },
+        { id: 's2v', label: 'Speech to Video', view: 'gen-s2v' },
         { id: 'batch', label: 'Batch Processing', view: 'gen-batch' },
       ],
     },

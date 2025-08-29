@@ -23,7 +23,8 @@
       "Bash(npx electron-builder:*)",
       "Bash(npm run dev:*)",
       "Bash(npm install:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": [],

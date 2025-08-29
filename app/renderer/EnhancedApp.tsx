@@ -6,6 +6,7 @@ import { VideoGenerationView } from './views/VideoGenerationView';
 import { TextToVideoView } from './views/TextToVideoView';
 import { ImageToVideoView } from './views/ImageToVideoView';
 import { TextImageToVideoView } from './views/TextImageToVideoView';
+import { SpeechToVideoView } from './views/SpeechToVideoView';
 import { theme } from './styles/theme';
 import { 
   Sparkles, Play, Square, FolderOpen, Save, Settings2, 
@@ -645,6 +646,7 @@ export const EnhancedApp: React.FC = () => {
           {activeView === 'gen-t2v' && <TextToVideoView key="t2v" />}
           {activeView === 'gen-i2v' && <ImageToVideoView key="i2v" />}
           {activeView === 'gen-ti2v' && <TextImageToVideoView key="ti2v" />}
+          {activeView === 'gen-s2v' && <SpeechToVideoView key="s2v" />}
           {activeView === 'gen-batch' && <WANGenerationCore key="batch" />}
           {activeView === 'dashboard' && (
             <div style={{ padding: theme.spacing.xl }}>
