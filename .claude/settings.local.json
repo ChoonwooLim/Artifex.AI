@@ -23,7 +23,9 @@
       "Bash(SET WAN_FORCE_FP16=1)",
       "Bash(SET WAN_COMPILE=1)",
       "Bash(WAN_FORCE_FP16=1 WAN_COMPILE=1 npm start)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(find:*)",
+      "Bash(cmd /c:*)"
     ],
     "deny": [],
     "ask": [],

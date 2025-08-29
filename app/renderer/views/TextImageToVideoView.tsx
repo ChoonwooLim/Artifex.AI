@@ -613,6 +613,97 @@ export const TextImageToVideoView: React.FC = () => {
               </div>
             </div>
 
+            {/* Output Settings */}
+            <div style={{ marginBottom: theme.spacing.xl }}>
+              <h3 style={{
+                fontSize: theme.typography.fontSize.lg,
+                fontWeight: theme.typography.fontWeight.semibold,
+                marginBottom: theme.spacing.lg,
+                display: 'flex',
+                alignItems: 'center',
+                gap: theme.spacing.sm,
+              }}>
+                <Save size={20} />
+                Output Settings
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: theme.spacing.lg }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: theme.spacing.sm,
+                    fontSize: theme.typography.fontSize.sm,
+                    color: theme.colors.textSecondary,
+                  }}>
+                    Output Folder
+                  </label>
+                  <div style={{ display: 'flex', gap: theme.spacing.sm }}>
+                    <input
+                      type="text"
+                      value={outputDir}
+                      onChange={(e) => setOutputDir(e.target.value)}
+                      placeholder="Select output folder..."
+                      style={{
+                        flex: 1,
+                        padding: theme.spacing.md,
+                        background: theme.colors.backgroundTertiary,
+                        border: `1px solid ${theme.colors.border}`,
+                        borderRadius: theme.borderRadius.md,
+                        color: theme.colors.text,
+                        fontSize: theme.typography.fontSize.md,
+                        outline: 'none',
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<FolderOpen size={16} />}
+                      onClick={async () => {
+                        const folder = await window.wanApi.openFolder();
+                        if (folder) setOutputDir(folder);
+                      }}
+                    >
+                      Browse
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: theme.spacing.sm,
+                    fontSize: theme.typography.fontSize.sm,
+                    color: theme.colors.textSecondary,
+                  }}>
+                    Output Filename
+                  </label>
+                  <input
+                    type="text"
+                    value={outputName}
+                    onChange={(e) => setOutputName(e.target.value)}
+                    placeholder="video_output (without extension)"
+                    style={{
+                      width: '100%',
+                      padding: theme.spacing.md,
+                      background: theme.colors.backgroundTertiary,
+                      border: `1px solid ${theme.colors.border}`,
+                      borderRadius: theme.borderRadius.md,
+                      color: theme.colors.text,
+                      fontSize: theme.typography.fontSize.md,
+                      outline: 'none',
+                    }}
+                  />
+                  <p style={{
+                    marginTop: theme.spacing.xs,
+                    fontSize: theme.typography.fontSize.xs,
+                    color: theme.colors.textSecondary,
+                  }}>
+                    .mp4 will be added automatically
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Advanced Settings */}
             <div style={{ marginBottom: theme.spacing.xl }}>
               <button
