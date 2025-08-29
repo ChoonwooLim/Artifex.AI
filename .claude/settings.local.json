@@ -22,7 +22,8 @@
       "Bash(where generate.py)",
       "Bash(SET WAN_FORCE_FP16=1)",
       "Bash(SET WAN_COMPILE=1)",
-      "Bash(WAN_FORCE_FP16=1 WAN_COMPILE=1 npm start)"
+      "Bash(WAN_FORCE_FP16=1 WAN_COMPILE=1 npm start)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": [],

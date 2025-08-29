@@ -1,3 +1,4 @@
+
 ## Attention Backend Strategy (Windows 11, CUDA)
 
 본 문서는 현재 레포에서 사용 중인 어텐션(Attention) 백엔드 선택/최적화 전략을 기록합니다. 목표는 Windows 11 환경(FlashAttention 미설치/미지원)에서도 안정적이고 빠른 추론 속도를 확보하는 것입니다.
