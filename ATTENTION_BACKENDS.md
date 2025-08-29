@@ -2,6 +2,8 @@
 
 본 문서는 현재 레포에서 사용 중인 어텐션(Attention) 백엔드 선택/최적화 전략을 기록합니다. 목표는 Windows 11 환경(FlashAttention 미설치/미지원)에서도 안정적이고 빠른 추론 속도를 확보하는 것입니다.
 
+> 이 문서는 WELL 브랜치 문서의 “실전 가이드/벤치마크/트러블슈팅” 내용을 병합해 하나로 정리한 최종본입니다.
+
 ### 핵심 요약
 - 기본 백엔드: PyTorch SDPA(Scaled Dot-Product Attention)
 - 드롭아웃: 추론 시 항상 0 고정(내부적으로 `torch.is_grad_enabled()` 기반)
@@ -54,6 +56,12 @@
   - xFormers 스타일: 중간 길이에서 효율적
 - 드롭아웃: 추론에서는 0 유지
 
+### WELL 방식 핵심(간명한 SDPA 경로)
+- FlashAttention은 완전히 우회하고, PyTorch Native SDPA만 사용
+- 텐서는 `[B, N, L, D]`로 정규화 후 SDPA 호출, 마스크/추가 전처리 최소화
+- 추론에서는 dropout=0, contiguous 유지, 불필요한 flatten/unflatten 제거
+- Windows에서 컴파일/의존성 문제를 피하고, 안정적으로 80~90% 수준의 성능 달성
+
 ### 로깅(최초 1회)
 - 백엔드, dtype, 모드(학습/추론), 텐서 크기, 드롭아웃, 실제 연산량/배치 연산량 비율 출력
 - 예시
@@ -80,6 +88,13 @@
 - 입력/모델 dtype 일치 유지(캐스팅 최소화). RTX 환경은 FP16 추천
 - 첫 스텝 지연이 클 때: 길이 분산/시퀀스 길이 확인 → Per-sample 경로 진입 여부 점검
 - 프레임/해상도를 절반으로 낮췄을 때 준선형 향상이 보이면 경로가 정상 동작 중
+
+### 트러블슈팅 체크리스트
+1. CUDA/드라이버 인식 여부 확인 (GPU/VRAM 표기, 오류 로그)
+2. dtype 일치 여부(FP16 권장, BF16은 데이터센터급에서)
+3. SDPA 힌트 적용 여부(로그 1회 출력 확인)
+4. 첫 스텝 과도 지연 시 길이 분산 확인 → Per-sample 분기 여부
+5. 메모리 부족 시 프레임/해상도/스텝 축소
 
 ### 변경 영향 요약
 - FlashAttention 없이도 Windows에서 안정적 추론 속도 확보
@@ -142,6 +157,13 @@ print(f"step took {elapsed:.1f} ms")
 ```
 
 프로파일링을 원하면 `torch.cuda.synchronize()`를 적절히 배치하고, `torch.profiler` 또는 Nsight Systems와 병행하세요.
+
+### GPU별 권장 설정(요약)
+| GPU | 권장 dtype | 비고 |
+|---|---|---|
+| RTX 30/40 (소비자용) | FP16 | TF32 허용, SDPA 기본 |
+| A100/H100 (데이터센터) | BF16 | SDPA 또는 FA3 가능 시 고려 |
+
 
 ---
 
