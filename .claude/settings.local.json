@@ -25,7 +25,8 @@
       "Bash(WAN_FORCE_FP16=1 WAN_COMPILE=1 npm start)",
       "Bash(git checkout:*)",
       "Bash(find:*)",
-      "Bash(cmd /c:*)"
+      "Bash(cmd /c:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": [],
