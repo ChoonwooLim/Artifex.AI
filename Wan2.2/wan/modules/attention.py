@@ -317,68 +317,65 @@ def flash_attention(
                     if not _attention_warning_shown:
                         cost_ratio = actual_cost / batch_cost
                         print(f"[Attention] Using per-sample SDPA (cost ratio: {cost_ratio:.2f})")
-        
-        if use_per_sample and q_lens is not None and k_lens is not None:
-            # OPTIMIZED: Per-sample SDPA with correct transpose axis
-            # Reshape to standard SDPA format [B, H, L, D]
-            q = q.unflatten(0, (b, lq)).transpose(1, 2)  # [B, Nq, Lq, C1]
-            k = k.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C1]
-            v = v.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C2]
             
-            # Collect results without padding (minimize overhead)
-            outputs = []
-            
-            # Process each sample with its actual length
-            for i in range(b):
-                q_len = int(q_lens[i])
-                k_len = int(k_lens[i])
+            if use_per_sample and q_lens is not None and k_lens is not None:
+                # OPTIMIZED: Per-sample SDPA with correct transpose axis
+                # Reshape to standard SDPA format [B, H, L, D]
+                q = q.unflatten(0, (b, lq)).transpose(1, 2)  # [B, Nq, Lq, C1]
+                k = k.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C1]
+                v = v.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C2]
                 
-                # Extract valid portions only (already in [B, H, L, D])
-                q_i = q[i:i+1, :, :q_len, :]  # [1, Nq, q_len, C1]
-                k_i = k[i:i+1, :, :k_len, :]  # [1, Nk, k_len, C1]
-                v_i = v[i:i+1, :, :k_len, :]  # [1, Nk, k_len, C2]
+                # Pre-allocate output tensor to avoid repeated memory allocations
+                num_heads = q.size(1)
+                head_dim = v.size(-1)
+                x = torch.zeros((b, num_heads, lq, head_dim), 
+                               dtype=v.dtype, device=v.device)
                 
-                # Run SDPA on actual length
-                out_i = torch.nn.functional.scaled_dot_product_attention(
-                    q_i, k_i, v_i,
-                    attn_mask=None,
-                    dropout_p=0.0,  # No dropout in inference
-                    scale=softmax_scale,
-                    is_causal=causal
-                )
+                # Process each sample with its actual length
+                for i in range(b):
+                    q_len = int(q_lens[i])
+                    k_len = int(k_lens[i])
+                    
+                    # Extract valid portions only (already in [B, H, L, D])
+                    q_i = q[i:i+1, :, :q_len, :]  # [1, Nq, q_len, C1]
+                    k_i = k[i:i+1, :, :k_len, :]  # [1, Nk, k_len, C1]
+                    v_i = v[i:i+1, :, :k_len, :]  # [1, Nk, k_len, C2]
+                    
+                    # Run SDPA on actual length
+                    out_i = torch.nn.functional.scaled_dot_product_attention(
+                        q_i, k_i, v_i,
+                        attn_mask=None,
+                        dropout_p=0.0,  # No dropout in inference
+                        scale=softmax_scale,
+                        is_causal=causal
+                    )
+                    
+                    # Copy result directly into pre-allocated tensor (no padding needed)
+                    x[i:i+1, :, :q_len, :] = out_i
+                    # Remaining x[i, :, q_len:, :] stays as zeros (implicit padding)
+            else:
+                # Standard path: Process all at once (faster when lengths are similar)
+                # Efficient reshape: unflatten and transpose in one go
+                q = q.unflatten(0, (b, lq)).transpose(1, 2)  # [B, Nq, Lq, C1]
+                k = k.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C1]
+                v = v.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C2]
                 
-                # Pad to max length if needed
-                if out_i.size(2) < lq:
-                    pad_size = (0, 0, 0, lq - out_i.size(2))  # Pad L dimension
-                    out_i = torch.nn.functional.pad(out_i, pad_size)
+                # Always use dropout=0 for inference
+                effective_dropout = 0.0 if not torch.is_grad_enabled() else dropout_p
                 
-                outputs.append(out_i)
-            
-            # Stack results efficiently
-            x = torch.cat(outputs, dim=0)  # [B, Nq, Lq, C2]
-        else:
-            # Standard path: Process all at once (faster when lengths are similar)
-            # Efficient reshape: unflatten and transpose in one go
-            q = q.unflatten(0, (b, lq)).transpose(1, 2)  # [B, Nq, Lq, C1]
-            k = k.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C1]
-            v = v.unflatten(0, (b, lk)).transpose(1, 2)  # [B, Nk, Lk, C2]
-            
-            # Always use dropout=0 for inference
-            effective_dropout = 0.0 if not torch.is_grad_enabled() else dropout_p
-            
-            # Use optimal SDPA backend hints
-            with torch.backends.cuda.sdp_kernel(
-                enable_flash=False,  # Not available on Windows
-                enable_math=True,    # Math backend
-                enable_mem_efficient=True  # Memory efficient backend
-            ):
-                x = torch.nn.functional.scaled_dot_product_attention(
-                    q, k, v,
-                    attn_mask=None,  # NO MASK for maximum performance
-                    dropout_p=effective_dropout,
-                    scale=softmax_scale,
-                    is_causal=causal  # Causal is efficient without custom masks
-                )
+                # Use optimal SDPA backend hints
+                with torch.backends.cuda.sdp_kernel(
+                    enable_flash=False,  # Not available on Windows
+                    enable_math=True,    # Math backend
+                    enable_mem_efficient=True  # Memory efficient backend
+                ):
+                    x = torch.nn.functional.scaled_dot_product_attention(
+                        q, k, v,
+                        attn_mask=None,  # NO MASK for maximum performance
+                        dropout_p=effective_dropout,
+                        scale=softmax_scale,
+                        is_causal=causal  # Causal is efficient without custom masks
+                    )
             
             # Transpose back if needed
             if x.dim() == 4 and x.size(1) != lq:
