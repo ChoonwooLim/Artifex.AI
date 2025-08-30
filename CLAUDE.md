@@ -145,6 +145,116 @@ Wan2.2-S2V-14B/        # Speech to Video 모델
 - 최소 16GB RAM 권장
 - Windows 10/11 지원
 
+## 🎬 VisionCut.AI (AutoShorts) 통합 설계 및 구현 규칙
+
+### 핵심 통합 원칙 (비가역 규칙)
+- ❌ **가짜 UI/스켈레톤/플레이스홀더 금지**: 모든 버튼/메뉴/모달은 실제 기능 연결 필수
+- ✅ **완전한 기능 동등성**: 기존 VisionCut과 100% 동일한 기능/이벤트/키보드 UX
+- ✅ **실제 처리 보장**: 모든 API/IPC 호출은 실제 처리/네트워크/파일 IO 수행
+- ❌ **TODO/placeholder 텍스트 금지**: 구현 전 머지 금지
+- ✅ **데이터 무결성**: 임시 파일/키/작업 로그 규정대로 보존 및 정리
+
+### VisionCut 기능 동등성 체크리스트
+1. **업로드/미리보기** ✅
+   - 파일 드래그/클릭, 진행 표시
+   - 시간바/컨트롤, 배속 조절
+   - MP4/AVI/MOV 지원, 1GB+ 파일 처리
+
+2. **얼굴 분석** ✅
+   - face-api.js 모델 자동 로드
+   - 1초 간격 샘플링
+   - Actor 카드/병합/타임라인 표시
+   - 진행률 실시간 표시
+
+3. **오디오 추출** ✅
+   - FFmpeg 네이티브/wasm 지원
+   - 하이/미디엄/라이트 품질 옵션
+   - 10MB 이상 자동 분할
+   - 진행률 및 로그 표시
+
+4. **자막 처리 (STT)** ✅
+   - OpenAI Whisper API 통합
+   - Web Speech API 폴백
+   - 언어/포맷 선택 가능
+   - SRT/VTT/ASS 출력
+
+5. **자막 편집기 Pro** ✅
+   - 모달 열기/닫기/포커스 트랩
+   - 병합/분할/싱크/화자 관리
+   - 검색/번역/일괄 작업
+   - 1000+ 라인 성능 최적화
+   - 키보드 단축키 완벽 지원
+
+6. **숏츠 제작** ✅
+   - 9:16/1:1/4:5/16:9 비율 지원
+   - NVENC/QSV/AMF/CPU 자동 선택
+   - 해상도/프레임/인코더 프리셋
+
+7. **AI 연동** ✅
+   - GPT-4/Claude/Gemini 통합
+   - 로컬 LLM 지원 (Ollama/vLLM)
+   - 이미지 포함 프롬프트
+   - 스크립트/해시태그/썸네일 생성
+
+### IPC/프록시 네임스페이스
+```
+artifex:visioncut:ffmpeg:*
+artifex:visioncut:audio:*
+artifex:visioncut:file:*
+artifex:visioncut:keys:*
+artifex:visioncut:stt:*
+```
+
+### 디렉토리 구조
+```
+app/renderer/autoshorts/
+├── services/           # 핵심 서비스
+│   ├── FaceDetectionService.ts
+│   ├── SubtitleService.ts
+│   ├── FFmpegService.ts
+│   └── AIService.ts
+├── css/               # 스타일시트
+├── utils/             # 유틸리티
+└── [JS modules]       # 기존 JS 모듈
+```
+
+### 모달/팝업 완전 구현 사양
+- **공통**: ESC/Enter 키, 포커스 트랩, 스크롤 잠금, 애니메이션, ARIA 접근성
+- **API Key Modal**: 보안 저장, 마스킹 토글
+- **Subtitle Editor Pro**: 최대화/최소화, 파형 표시, 단축키
+- **Face Analysis**: 진행률, Actor 카드, 병합, 타임라인
+- **Transcription Modal**: 모델/언어 선택, 진행 표시
+
+### 성능 기준 (SLA)
+- 초기 로드: < 2.5초
+- 얼굴 분석: 10분 영상 < 실시간×1.5
+- 오디오 추출: 10분 영상 < 30초 (GPU 가속 시)
+- 자막 편집: 1000행 입력 지연 < 32ms
+
+### LLM 게이트웨이 설계
+**클라우드 제공자**:
+- OpenAI, Anthropic, Google, Groq, Mistral
+
+**로컬 오픈소스 (권장)**:
+- **텍스트**: Llama 3.1 70B, Qwen2.5-72B
+- **멀티모달**: LLaVA-OneVision, InternVL2
+- **서버**: Ollama (Windows 최적), vLLM, llama.cpp
+
+### 테스트/수락 기준
+- E2E: 업로드→분석→추출→STT→편집→렌더 전체 플로우
+- 모든 모달 열기/닫기/단축키 동작
+- 실제 API 호출 (모킹 금지)
+- 임시 파일 정리 확인
+- DoD 전 항목 충족
+
+### 작업 시 필수 확인사항
+1. 모든 UI 요소는 실제 기능과 연결
+2. IPC는 `artifex:visioncut:*` 네임스페이스 사용
+3. face-api.js 모델 경로 자동 설정
+4. 자막 편집기 모든 기능 1:1 구현
+5. 프록시 업로드 파일 즉시 정리
+6. 에러 처리 및 사용자 피드백 완벽 구현
+
 ## AI Collaboration Guidelines (자동 적용)
 
 ### 핵심 원칙
