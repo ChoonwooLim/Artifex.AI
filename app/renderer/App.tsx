@@ -7,6 +7,7 @@ import VideoExport from './workflow/VideoExport';
 import CinematicControls from './workflow/CinematicControls';
 import Flow from './workflow/Flow';
 import SimpleFlow from './workflow/SimpleFlow';
+import { AutoShortsView } from './views/AutoShortsView';
 
 declare global {
   interface Window {
@@ -33,7 +34,7 @@ declare global {
 }
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 's2v'>('wan');
+  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 's2v' | 'autoshorts'>('wan');
   const [isAnimated, setIsAnimated] = useState(false);
 
   // WAN generation states
@@ -96,6 +97,7 @@ const App: React.FC = () => {
   const navItems = [
     { id: 'wan', label: 'WAN Generate', icon: '🎬' },
     { id: 's2v', label: 'Speech to Video', icon: '🎙️' },
+    { id: 'autoshorts', label: 'AutoShorts AI', icon: '🤖' },
     { id: 'editor', label: 'Node Editor', icon: '🎨' },
     { id: 'timeline', label: 'Timeline', icon: '⏱️' },
     { id: 'effects', label: 'Effects', icon: '✨' },
@@ -875,6 +877,7 @@ const App: React.FC = () => {
           {activeView === 'export' && <VideoExport />}
           {activeView === 'cinematic' && <CinematicControls />}
           {activeView === 'flow' && <Flow />}
+          {activeView === 'autoshorts' && <AutoShortsView />}
           {activeView === 's2v' && (
             <div style={{ padding: '24px' }}>
               <h2 style={{ 

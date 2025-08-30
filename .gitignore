@@ -129,3 +129,179 @@ docs/site/
 *.crt
 secrets/
 credentials/
+
+# Ollama models and data
+ollama/
+.ollama/
+models/ollama/
+*.gguf
+*.ggml
+
+# Installer files
+dist-installer/
+*.msi
+*.nsis
+OllamaSetup.exe
+
+# AutoShorts temporary files
+app/renderer/autoshorts/temp/
+app/renderer/autoshorts/cache/
+app/renderer/autoshorts/output/
+
+# Face detection models
+app/renderer/autoshorts/models/
+face-api-models/
+*.weights.bin
+*.json.gz
+
+# FFmpeg binaries
+ffmpeg.exe
+ffmpeg
+ffprobe.exe
+ffprobe
+ffplay.exe
+ffplay
+
+# API Keys and config
+config.local.json
+*.local.json
+.env.*
+
+# Large video/audio files
+*.mkv
+*.flv
+*.wmv
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.ogg
+
+# Temporary processing files
+*.tmp
+*.processing
+*.partial
+
+# Build artifacts
+app/build/
+app/dist-*/
+app/release/
+app/out/
+
+# Log files with dates
+*.log.[0-9]*
+error-*.log
+debug-*.log
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Python virtual environments
+venv*/
+ENV/
+env.bak/
+venv.bak/
+
+# Compiled Python
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Yarn
+yarn-error.log
+.yarn-integrity
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# npm
+npm-debug.log*
+lerna-debug.log*
+.npm
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+dist/
+
+# Gatsby
+.cache/
+public/
+
+# VuePress
+.vuepress/dist
+
+# Serverless
+.serverless/
+
+# FuseBox
+.fusebox/
+
+# DynamoDB
+.dynamodb/
+
+# TernJS
+.tern-port
+
+# Stores
+.vscode/settings.json
+.vs/

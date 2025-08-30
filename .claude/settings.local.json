@@ -30,7 +30,12 @@
       "Bash(cross-env VITE_PORT=5174 npm run dev)",
       "Bash(grep:*)",
       "Bash(findstr:*)",
-      "Bash(wmic:*)"
+      "Bash(wmic:*)",
+      "Bash(ollama:*)",
+      "Bash(where:*)",
+      "Bash(install-ollama.bat)",
+      "Bash(.\\install-ollama.bat)",
+      "Bash(start npm start)"
     ],
     "deny": [],
     "ask": [],
