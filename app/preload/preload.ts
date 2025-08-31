@@ -29,6 +29,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCacheSize: () => ipcRenderer.invoke('get-cache-size'),
 });
 
+contextBridge.exposeInMainWorld('electron', {
+  startOllama: () => ipcRenderer.invoke('start-ollama'),
+  stopOllama: () => ipcRenderer.invoke('stop-ollama'),
+  installModels: () => ipcRenderer.invoke('install-models'),
+});
+
 // Setup context menu on right click
 window.addEventListener('contextmenu', (e) => {
   e.preventDefault();
