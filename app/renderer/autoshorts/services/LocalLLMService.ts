@@ -16,7 +16,7 @@ export class LocalLLMService {
       provider: 'ollama',
       baseUrl: 'http://localhost:11434',
       model: 'qwen2-vl:7b',
-      temperature: 0.7,
+      temperature: 0.8,
       maxTokens: 2048,
       ...config
     };
@@ -106,8 +106,12 @@ export class LocalLLMService {
           messages: processedMessages,
           stream: false,
           options: {
-            temperature: options?.temperature || this.config.temperature,
-            num_predict: options?.maxTokens || this.config.maxTokens
+            temperature: options?.temperature || this.config.temperature || 0.8,
+            num_predict: options?.maxTokens || this.config.maxTokens || 2048,
+            top_k: 40,
+            top_p: 0.9,
+            repeat_penalty: 1.1,
+            stop: ["User:", "Assistant:", "\n\n\n"]
           }
         }
       );

@@ -282,6 +282,13 @@ interface ModelInfo {
 
 const availableModels: ModelInfo[] = [
   {
+    value: 'llama3.2-vision:11b',
+    label: 'Llama 3.2 Vision',
+    description: '멀티모달 최신',
+    type: 'multimodal',
+    size: '7.8GB'
+  },
+  {
     value: 'llava:7b',
     label: 'LLaVA',
     description: '멀티모달 (영어)',
@@ -293,14 +300,28 @@ const availableModels: ModelInfo[] = [
     label: 'Qwen 2.5',
     description: '한국어 지원',
     type: 'text',
-    size: '4.3GB'
+    size: '4.7GB'
   },
   {
     value: 'gemma2:9b',
     label: 'Gemma 2',
     description: '한국어 최적화',
     type: 'text',
-    size: '5.0GB'
+    size: '5.4GB'
+  },
+  {
+    value: 'mistral:7b',
+    label: 'Mistral',
+    description: '빠른 추론',
+    type: 'text',
+    size: '4.4GB'
+  },
+  {
+    value: 'gpt-oss:20b',
+    label: 'GPT-OSS',
+    description: '고성능 대용량',
+    type: 'text',
+    size: '13GB'
   }
 ];
 
@@ -311,7 +332,7 @@ export const OllamaChat: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<'online' | 'offline' | 'loading'>('loading');
   const [installedModels, setInstalledModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState('llava:7b');
+  const [selectedModel, setSelectedModel] = useState('llama3.2-vision:11b');
   const [ollamaService, setOllamaService] = useState<LocalOllamaService | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -403,11 +424,25 @@ export const OllamaChat: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await ollamaService.chat([{
-        role: 'user',
-        content: input,
-        images: images.length > 0 ? images : undefined
-      }]);
+      // 시스템 프롬프트 추가하여 더 나은 응답 유도
+      const systemPrompt = {
+        role: 'system' as const,
+        content: '당신은 유용하고 정확한 AI 어시스턴트입니다. 간결하고 명확하게 답변하며, 반복을 피하고 사용자의 질문에 직접적으로 답합니다. 한국어로 자연스럽게 대화하세요.'
+      };
+
+      const chatMessages = [
+        systemPrompt,
+        {
+          role: 'user' as const,
+          content: input,
+          images: images.length > 0 ? images : undefined
+        }
+      ];
+
+      const response = await ollamaService.chat(chatMessages, {
+        temperature: 0.8,
+        maxTokens: 1024
+      });
 
       setMessages(prev => [...prev, {
         role: 'assistant',

@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { OllamaChat } from '../autoshorts/components/OllamaChat';
+import { AIChatTabs } from '../autoshorts/components/AIChatTabs';
+import { ApiSettings } from '../autoshorts/components/ApiSettings';
 import { OllamaService } from '../autoshorts/services/OllamaService';
 
 const Container = styled.div`
@@ -231,6 +232,21 @@ export const AutoShortsView: React.FC = () => {
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  
+  useEffect(() => {
+    // Listen for navigation to settings from cloud chat
+    const handleNavigateToSettings = (e: CustomEvent) => {
+      if (e.detail === 'api-keys') {
+        setActiveTab('settings');
+      }
+    };
+    
+    window.addEventListener('navigate-to-settings' as any, handleNavigateToSettings);
+    
+    return () => {
+      window.removeEventListener('navigate-to-settings' as any, handleNavigateToSettings);
+    };
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -448,7 +464,7 @@ export const AutoShortsView: React.FC = () => {
         );
 
       case 'chat':
-        return <OllamaChat />;
+        return <AIChatTabs />;
 
       case 'analysis':
         return (
@@ -468,26 +484,7 @@ export const AutoShortsView: React.FC = () => {
         );
 
       case 'settings':
-        return (
-          <div style={{ color: 'white' }}>
-            <h2>Ollama Settings</h2>
-            <FeatureCard>
-              <FeatureTitle>Model Configuration</FeatureTitle>
-              <FeatureDescription>
-                Current model: qwen2-vl:7b<br />
-                Base URL: http://localhost:11434
-              </FeatureDescription>
-            </FeatureCard>
-            <FeatureCard>
-              <FeatureTitle>Performance</FeatureTitle>
-              <FeatureDescription>
-                GPU: RTX 3090 (24GB VRAM)<br />
-                Max tokens: 2048<br />
-                Temperature: 0.7
-              </FeatureDescription>
-            </FeatureCard>
-          </div>
-        );
+        return <ApiSettings />;
 
       default:
         return null;

@@ -277,7 +277,16 @@ export class LocalOllamaService extends LocalLLMService {
       throw new Error(`모델 ${this.currentModel}을 사용할 수 없습니다.`);
     }
 
-    return super.chat(messages, options);
+    // 기본 시스템 프롬프트 추가 (없을 경우)
+    const enhancedMessages = [...messages];
+    if (!messages.some(msg => msg.role === 'system')) {
+      enhancedMessages.unshift({
+        role: 'system',
+        content: '당신은 정확하고 도움이 되는 AI 어시스턴트입니다. 사실만을 말하고, 모르는 것은 모른다고 대답합니다. 간결하고 명확하게 답변하며, 불필요한 반복을 피합니다. 사용자의 질문에 직접적으로 답변하세요.'
+      });
+    }
+
+    return super.chat(enhancedMessages, options);
   }
 
   /**
