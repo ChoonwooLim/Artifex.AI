@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { AIChatTabs } from '../autoshorts/components/AIChatTabs';
 import { ApiSettings } from '../autoshorts/components/ApiSettings';
+import { AudioAIView } from '../autoshorts/components/AudioAIView';
 import { OllamaService } from '../autoshorts/services/OllamaService';
 
 const Container = styled.div`
@@ -221,7 +222,7 @@ const Progress = styled.div<{ percent: number }>`
   transition: width 0.3s;
 `;
 
-type TabType = 'video' | 'chat' | 'analysis' | 'settings';
+type TabType = 'video' | 'chat' | 'analysis' | 'audio' | 'settings';
 
 export const AutoShortsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('video');
@@ -483,6 +484,9 @@ export const AutoShortsView: React.FC = () => {
           </div>
         );
 
+      case 'audio':
+        return <AudioAIView />;
+
       case 'settings':
         return <ApiSettings />;
 
@@ -494,7 +498,7 @@ export const AutoShortsView: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>AutoShorts AI Studio</Title>
+        <Title>VisionCut.AI Studio</Title>
         <SubTitle>Powered by Ollama + Qwen2-VL-7B Multimodal AI</SubTitle>
       </Header>
 
@@ -516,6 +520,12 @@ export const AutoShortsView: React.FC = () => {
           onClick={() => setActiveTab('analysis')}
         >
           📊 Analysis
+        </Tab>
+        <Tab 
+          active={activeTab === 'audio'} 
+          onClick={() => setActiveTab('audio')}
+        >
+          🎵 AI Audio
         </Tab>
         <Tab 
           active={activeTab === 'settings'} 

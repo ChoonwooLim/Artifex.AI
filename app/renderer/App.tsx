@@ -97,7 +97,7 @@ const App: React.FC = () => {
   const navItems = [
     { id: 'wan', label: 'WAN Generate', icon: '🎬' },
     { id: 's2v', label: 'Speech to Video', icon: '🎙️' },
-    { id: 'autoshorts', label: 'AutoShorts AI', icon: '🤖' },
+    { id: 'autoshorts', label: 'VisionCut.AI', icon: '🤖' },
     { id: 'editor', label: 'Node Editor', icon: '🎨' },
     { id: 'timeline', label: 'Timeline', icon: '⏱️' },
     { id: 'effects', label: 'Effects', icon: '✨' },
