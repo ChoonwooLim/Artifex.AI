@@ -83,12 +83,46 @@ const nodeTypes: NodeTypes = {
   exportNode: ExportNode,
 };
 
-function VideoInputNode({ data }: any) {
+function VideoInputNode({ data, id }: any) {
+  const handleSelectVideo = async () => {
+    if (typeof window !== 'undefined' && (window as any).electron) {
+      const result = await (window as any).electron.openFile({
+        filters: [
+          { name: 'Videos', extensions: ['mp4', 'avi', 'mov', 'mkv', 'webm'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result && !result.canceled && result.filePaths.length > 0) {
+        // Update node data with selected file
+        data.path = result.filePaths[0];
+        data.format = result.filePaths[0].split('.').pop()?.toUpperCase() || 'MP4';
+        
+        // Get video metadata if possible
+        const video = document.createElement('video');
+        video.src = `file://${result.filePaths[0]}`;
+        video.onloadedmetadata = () => {
+          data.resolution = `${video.videoWidth}x${video.videoHeight}`;
+        };
+      }
+    }
+  };
+
   return (
     <div className="video-node video-input-node">
       <div className="node-header">📹 Video Input</div>
       <div className="node-content">
-        <input type="text" placeholder="Video path..." value={data.path || ''} />
+        <input 
+          type="text" 
+          placeholder="Click to select video..." 
+          value={data.path ? data.path.split(/[\\\/]/).pop() : ''} 
+          onClick={handleSelectVideo}
+          readOnly
+          style={{ cursor: 'pointer' }}
+        />
+        <button onClick={handleSelectVideo} style={{ marginTop: '5px' }}>
+          Select Video
+        </button>
         <div className="node-info">
           <span>Format: {data.format || 'MP4'}</span>
           <span>Resolution: {data.resolution || '1920x1080'}</span>
@@ -119,14 +153,41 @@ function TextPromptNode({ data }: any) {
   );
 }
 
-function ImagePromptNode({ data }: any) {
+function ImagePromptNode({ data, id }: any) {
+  const handleSelectImage = async () => {
+    if (typeof window !== 'undefined' && (window as any).electron) {
+      const result = await (window as any).electron.openFile({
+        filters: [
+          { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result && !result.canceled && result.filePaths.length > 0) {
+        // Update node data with selected file
+        data.path = result.filePaths[0];
+        data.preview = `file://${result.filePaths[0]}`;
+      }
+    }
+  };
+
   return (
     <div className="video-node image-prompt-node">
       <div className="node-header">🖼️ Image Prompt</div>
       <div className="node-content">
-        <input type="text" placeholder="Image path..." value={data.path || ''} />
-        <div className="image-preview">
-          {data.preview && <img src={data.preview} alt="Preview" />}
+        <input 
+          type="text" 
+          placeholder="Click to select image..." 
+          value={data.path ? data.path.split(/[\\\/]/).pop() : ''} 
+          onClick={handleSelectImage}
+          readOnly
+          style={{ cursor: 'pointer' }}
+        />
+        <button onClick={handleSelectImage} style={{ marginTop: '5px' }}>
+          Select Image
+        </button>
+        <div className="image-preview" style={{ marginTop: '10px', maxHeight: '150px', overflow: 'hidden' }}>
+          {data.preview && <img src={data.preview} alt="Preview" style={{ width: '100%', height: 'auto' }} />}
         </div>
       </div>
       <div className="node-ports">

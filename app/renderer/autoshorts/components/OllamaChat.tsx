@@ -21,6 +21,9 @@ const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 15px;
+  overflow: visible;
 `;
 
 const Title = styled.h2`
@@ -51,10 +54,12 @@ const ModelSelectorContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 15px;
+  flex-wrap: wrap;
+  max-width: 100%;
 `;
 
 const ModelCard = styled.div<{ selected: boolean; available: boolean }>`
-  padding: 10px 15px;
+  padding: 10px 12px;
   background: ${props => 
     props.selected ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
   border: 1px solid ${props => 
@@ -64,6 +69,8 @@ const ModelCard = styled.div<{ selected: boolean; available: boolean }>`
   opacity: ${props => props.available ? 1 : 0.5};
   transition: all 0.3s ease;
   position: relative;
+  min-width: 120px;
+  flex: 0 0 auto;
 
   &:hover {
     background: ${props => 
@@ -537,6 +544,10 @@ export const OllamaChat: React.FC = () => {
     );
   }
 
+  // 디버깅을 위한 로그
+  console.log('Available models count:', availableModels.length);
+  console.log('Available models:', availableModels);
+  
   return (
     <ChatContainer>
       <Header>
@@ -546,24 +557,27 @@ export const OllamaChat: React.FC = () => {
         </Title>
         
         <ModelSelectorContainer>
-          {availableModels.map(model => (
-            <ModelCard
-              key={model.value}
-              selected={selectedModel === model.value}
-              available={installedModels.includes(model.value)}
-              onClick={() => handleModelSelect(model.value)}
-            >
-              <ModelBadge type={model.type}>
-                {model.type === 'multimodal' ? '멀티' : 
-                 model.type === 'vision' ? '비전' : '텍스트'}
-              </ModelBadge>
-              <ModelName>{model.label}</ModelName>
-              <ModelDesc>
-                {model.description} • {model.size}
-                {!installedModels.includes(model.value) && ' • 미설치'}
-              </ModelDesc>
-            </ModelCard>
-          ))}
+          {availableModels.map((model, index) => {
+            console.log(`Rendering model ${index}:`, model.label);
+            return (
+              <ModelCard
+                key={model.value}
+                selected={selectedModel === model.value}
+                available={installedModels.includes(model.value)}
+                onClick={() => handleModelSelect(model.value)}
+              >
+                <ModelBadge type={model.type}>
+                  {model.type === 'multimodal' ? '멀티' : 
+                   model.type === 'vision' ? '비전' : '텍스트'}
+                </ModelBadge>
+                <ModelName>{model.label}</ModelName>
+                <ModelDesc>
+                  {model.description} • {model.size}
+                  {!installedModels.includes(model.value) && ' • 미설치'}
+                </ModelDesc>
+              </ModelCard>
+            );
+          })}
           
           {installedModels.length === 0 && (
             <InstallButton onClick={installAllModels}>

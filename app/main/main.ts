@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { appUpdater } from './updater';
 import { setupSecurityPolicy } from './security';
+import { startOllamaServer, stopOllamaServer } from './ollama';
 
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
