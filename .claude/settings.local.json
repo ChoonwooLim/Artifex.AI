@@ -35,7 +35,12 @@
       "Bash(where:*)",
       "Bash(install-ollama.bat)",
       "Bash(.\\install-ollama.bat)",
-      "Bash(start npm start)"
+      "Bash(start npm start)",
+      "Bash(start cmd /c \"npm start\")",
+      "Bash(npx electron:*)",
+      "Bash(curl:*)",
+      "Bash(C:TEMPOllamaSetup.exe /S)",
+      "Bash(start C:TEMPOllamaSetup.exe)"
     ],
     "deny": [],
     "ask": [],

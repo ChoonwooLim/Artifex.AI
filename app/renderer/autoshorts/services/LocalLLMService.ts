@@ -79,15 +79,31 @@ export class LocalLLMService {
     options?: any
   ): Promise<string> {
     try {
+      // 이미지 처리: base64 데이터 URL을 순수 base64로 변환
+      const processedMessages = messages.map(msg => {
+        const processedMsg: any = {
+          role: msg.role,
+          content: msg.content
+        };
+        
+        if (msg.images && msg.images.length > 0) {
+          // data:image/png;base64, 부분을 제거하고 순수 base64만 추출
+          processedMsg.images = msg.images.map((img: string) => {
+            if (img.startsWith('data:')) {
+              return img.split(',')[1];
+            }
+            return img;
+          });
+        }
+        
+        return processedMsg;
+      });
+      
       const response = await axios.post(
         `${this.config.baseUrl}/api/chat`,
         {
           model: this.config.model,
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-            images: msg.images // Ollama는 base64 이미지 지원
-          })),
+          messages: processedMessages,
           stream: false,
           options: {
             temperature: options?.temperature || this.config.temperature,

@@ -1,9 +1,10 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, globalShortcut, clipboard, session } from 'electron';
 import path from 'node:path';
-import { spawn, ChildProcessWithoutNullStreams, execFileSync } from 'node:child_process';
+import { spawn, ChildProcessWithoutNullStreams, execFileSync, exec } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { appUpdater } from './updater';
+import { setupSecurityPolicy } from './security';
 
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
@@ -61,7 +62,7 @@ function createWindow() {
       ? path.join(__dirname, '../build-resources/icon.ico')
       : undefined,
     backgroundColor: '#1a1a1a',
-    show: false, // Show window after loading
+    show: true, // Show window immediately
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -80,10 +81,7 @@ function createWindow() {
     mainWindow.setFullScreen(true);
   }
   
-  // Show window when ready
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-  });
+  // Window is already shown due to show: true
   
   // Save window state on close
   mainWindow.on('close', () => {
@@ -562,6 +560,38 @@ ipcMain.handle('get-cache-size', async () => {
 });
 
 app.whenReady().then(() => {
+  // Setup security policy
+  setupSecurityPolicy();
+  
+  // Setup Ollama IPC handlers
+  ipcMain.handle('start-ollama', async () => {
+    try {
+      await startOllamaServer();
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+  
+  ipcMain.handle('stop-ollama', async () => {
+    stopOllamaServer();
+    return { success: true };
+  });
+  
+  ipcMain.handle('install-models', async () => {
+    try {
+      const scriptPath = path.join(process.cwd(), '..', 'scripts', 'install-all-models.bat');
+      exec(`start cmd /k "${scriptPath}"`, (error) => {
+        if (error) {
+          console.error('Failed to run install script:', error);
+        }
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+  
   // Register global shortcuts
   globalShortcut.register('CommandOrControl+Shift+D', () => {
     if (mainWindow) {
@@ -604,6 +634,8 @@ app.on('before-quit', () => {
   if (currentJob) {
     currentJob.kill();
   }
+  // Stop Ollama server
+  stopOllamaServer();
 });
 
 // Handle app crashes and errors
