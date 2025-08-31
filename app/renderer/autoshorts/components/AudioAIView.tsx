@@ -5,6 +5,7 @@ import {
   Settings, Activity, Radio, Headphones, File,
   Sliders, Clock, Zap, Sparkles, ChevronDown
 } from 'lucide-react';
+import { AudioAIService, AudioConfig, TTSRequest } from '../services/AudioAIService';
 
 const Container = styled.div`
   display: flex;
@@ -358,6 +359,9 @@ export const AudioAIView: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>('');
+  const [audioService, setAudioService] = useState<AudioAIService | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const musicModels: AudioModel[] = [
     {
@@ -547,14 +551,51 @@ export const AudioAIView: React.FC = () => {
       return;
     }
 
+    // API 키가 필요한 서비스 체크
+    const needsApiKey = ['clova', 'kakao', 'openai-tts', 'elevenlabs', 'azure-tts', 'google-tts'];
+    if (needsApiKey.includes(selectedModel) && !apiKey) {
+      alert('선택한 서비스를 사용하려면 API 키가 필요합니다.\n설정에서 API 키를 입력해주세요.');
+      return;
+    }
+
     setIsGenerating(true);
     
-    // 실제 구현시 여기에 각 모델별 API 호출 로직 추가
-    setTimeout(() => {
+    try {
+      // AudioAIService 초기화
+      const config: AudioConfig = {
+        provider: selectedModel,
+        apiKey: apiKey,
+        language: 'ko-KR'
+      };
+      
+      const service = new AudioAIService(config);
+      
+      // TTS 요청 생성
+      const request: TTSRequest = {
+        text: prompt,
+        language: 'ko-KR',
+        format: 'mp3'
+      };
+      
+      // 오디오 생성
+      const audioBlob = await service.generateTTS(request);
+      
+      // Blob을 URL로 변환
+      const url = URL.createObjectURL(audioBlob);
+      setAudioUrl(url);
+      
+      // 자동 재생 (선택사항)
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.play();
+      }
+      
+    } catch (error) {
+      console.error('Audio generation failed:', error);
+      alert(`오디오 생성 실패: ${error.message}\n\n로컬 서비스의 경우 서버가 실행 중인지 확인하세요.`);
+    } finally {
       setIsGenerating(false);
-      // 생성된 오디오 URL 설정
-      // setAudioUrl(generatedUrl);
-    }, 3000);
+    }
   };
 
   const renderModelCards = () => {
@@ -568,8 +609,12 @@ export const AudioAIView: React.FC = () => {
             onClick={() => setSelectedModel(model.id)}
             style={{
               border: selectedModel === model.id ? 
-                '1px solid rgba(102, 126, 234, 0.5)' : 
-                '1px solid rgba(255, 255, 255, 0.1)'
+                '2px solid #667eea' : 
+                '1px solid rgba(255, 255, 255, 0.1)',
+              background: selectedModel === model.id ?
+                'rgba(102, 126, 234, 0.15)' :
+                'rgba(255, 255, 255, 0.05)',
+              transform: selectedModel === model.id ? 'scale(1.02)' : 'scale(1)'
             }}
           >
             <FeatureIcon>{model.icon}</FeatureIcon>
@@ -670,6 +715,23 @@ export const AudioAIView: React.FC = () => {
           </>
         )}
 
+        {/* API 키 입력 (필요한 서비스만) */}
+        {selectedModel && ['clova', 'kakao', 'openai-tts', 'elevenlabs'].includes(selectedModel) && (
+          <InputGroup>
+            <Label>API 키</Label>
+            <Input 
+              type="password"
+              placeholder={
+                selectedModel === 'clova' ? 'Client ID:Client Secret 형식으로 입력' :
+                selectedModel === 'kakao' ? 'Kakao REST API 키 입력' :
+                'API 키를 입력하세요'
+              }
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+          </InputGroup>
+        )}
+
         <Button onClick={handleGenerate} disabled={isGenerating}>
           {isGenerating ? (
             <>
@@ -684,18 +746,19 @@ export const AudioAIView: React.FC = () => {
 
         {audioUrl && (
           <AudioPlayer>
-            <WaveformContainer>
-              <Activity size={40} />
-            </WaveformContainer>
+            <audio 
+              ref={audioRef}
+              controls
+              style={{ width: '100%', marginBottom: '10px' }}
+              src={audioUrl}
+            />
             <PlayerControls>
-              <PlayButton onClick={() => setIsPlaying(!isPlaying)}>
-                {isPlaying ? <Pause /> : <Play />}
-              </PlayButton>
-              <ProgressBar>
-                <Progress progress={progress} />
-              </ProgressBar>
-              <TimeDisplay>0:00 / 0:30</TimeDisplay>
-              <Button>
+              <Button onClick={() => {
+                const link = document.createElement('a');
+                link.href = audioUrl;
+                link.download = `audio_${Date.now()}.mp3`;
+                link.click();
+              }}>
                 <Download /> 다운로드
               </Button>
             </PlayerControls>
@@ -742,6 +805,20 @@ export const AudioAIView: React.FC = () => {
       </TabContainer>
 
       <ContentArea>
+        {!selectedModel && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '20px',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: '16px',
+            marginBottom: '20px',
+            background: 'rgba(102, 126, 234, 0.1)',
+            borderRadius: '8px',
+            border: '1px solid rgba(102, 126, 234, 0.3)'
+          }}>
+            👆 아래 AI 모델 중 하나를 선택하면 텍스트 입력창이 나타납니다
+          </div>
+        )}
         {renderModelCards()}
         {selectedModel && renderGenerationPanel()}
       </ContentArea>
