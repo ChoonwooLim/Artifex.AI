@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import styled from 'styled-components';
 
 interface TimelineTrack {
   id: string;
@@ -381,9 +382,61 @@ const VideoTimeline: React.FC = () => {
     };
   }, [isPlaying, currentTime, duration]);
 
+  const timelineStyles = {
+    container: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      height: '100%',
+      background: '#0a0a0a',
+      color: '#fff',
+      fontFamily: "'Inter', sans-serif",
+      userSelect: 'none' as const
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '12px 20px',
+      background: '#1a1a1a',
+      borderBottom: '1px solid #333'
+    },
+    title: {
+      fontSize: '16px',
+      fontWeight: 600
+    },
+    controls: {
+      display: 'flex',
+      gap: '12px',
+      alignItems: 'center'
+    },
+    controlGroup: {
+      display: 'flex',
+      gap: '6px',
+      alignItems: 'center',
+      padding: '0 12px',
+      borderRight: '1px solid #333'
+    },
+    controlBtn: {
+      padding: '6px 10px',
+      background: '#2a2a2a',
+      border: '1px solid #444',
+      borderRadius: '4px',
+      color: '#fff',
+      cursor: 'pointer',
+      fontSize: '12px',
+      transition: 'all 0.2s'
+    },
+    controlBtnActive: {
+      background: '#00ff88',
+      color: '#000',
+      borderColor: '#00ff88'
+    }
+  };
+
   return (
-    <div className="timeline-editor">
-      <style jsx>{`
+    <div style={timelineStyles.container}>
+      {/* Removed style jsx - using inline styles instead */}
+      {/*
         .timeline-editor {
           display: flex;
           flex-direction: column;
@@ -834,11 +887,11 @@ const VideoTimeline: React.FC = () => {
           justify-content: center;
           font-size: 10px;
         }
-      `}</style>
+      */}
 
-      <div className="timeline-header">
-        <div className="timeline-title">Advanced Timeline Editor</div>
-        <div className="timeline-controls">
+      <div style={timelineStyles.header}>
+        <div style={timelineStyles.title}>Advanced Timeline Editor</div>
+        <div style={timelineStyles.controls}>
           <div className="control-group">
             <button className="control-btn" onClick={handlePlayPause}>
               {isPlaying ? '⏸' : '▶'}

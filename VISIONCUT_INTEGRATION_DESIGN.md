@@ -201,3 +201,97 @@ POST /api/visioncut/llm/vision
 - Artifex 공용 성능 모니터와 Visioncut의 `performance-monitor.js`는 통합 또는 어댑터로 병합
 
 
+
+### 22. 원격 개발 아키텍처(Windows↔Linux 직결)
+- **목표**: Windows(편집/IDE) ↔ Linux(GPU/런타임) 직결 환경에서 Artifex.AI/Visioncut 모듈을 안정적·고성능으로 개발/실행
+- **범위**: 물리 연결/네트워크, 접근/보안, 개발 워크플로, 서비스 토폴로지, CUDA/GPU 스택, 배포 옵션, 스모크 테스트
+
+#### 22.1 물리/네트워크 토폴로지
+- **연결**: RJ-45 직결(현대 NIC는 Auto‑MDI‑X 지원, 크로스케이블 불필요)
+- **IP(권장 고정)**:
+  - Windows: `10.10.10.1/24`, 게이트웨이/ DNS 비움
+  - Linux: `10.10.10.2/24`, 게이트웨이/ DNS 비움
+- **인터넷 공유(옵션)**: Windows ICS로 Linux에 인터넷 전달 가능. 필요 시 Windows NIC 공유 활성화, 충돌 없는 대역 사용
+
+#### 22.2 접근/보안(SSH 기준)
+- **인증**: 공개키만 허용(비밀번호 로그인 비활성)
+  - Windows 공개키: `C:\Users\\<USER>\\.ssh\\id_ed25519.pub`
+  - Linux: `/home/<user>/.ssh/authorized_keys`에 추가, 퍼미션 `700 ~/.ssh`, `600 authorized_keys`
+- **sshd 설정**: `/etc/ssh/sshd_config`
+  - `PasswordAuthentication no`, `PubkeyAuthentication yes`, `PermitRootLogin no`
+  - `AllowUsers <user>`(옵션)
+- **방화벽**: `ufw allow 22/tcp`, 필요 포트만 허용(아래 토폴로지 참조)
+- **침입 방어(옵션)**: fail2ban `sshd` jail 활성화
+
+#### 22.3 개발 워크플로(권장)
+- **IDE**: Windows Cursor에서 SSH 원격으로 Linux 워크스페이스 열기(편집/터미널 실행은 Linux)
+- **Git 전략**: 리포지토리는 Linux에 클론하고 원격(origin)으로 중앙 저장소 사용. Windows는 IDE만, 로컬 파일 동기화 불필요
+- **런타임 실행 주체**: Linux(GPU/FFmpeg/Proxy/LLM Gateway). Windows에서는 브라우저/Electron 디버깅만 수행 가능
+
+#### 22.4 서비스 토폴로지(개발 시)
+- Artifex Main/Proxy(Express): Linux, 포트 예시 `3000` 또는 앱 설정값
+- Visioncut 프록시 엔드포인트: `http://10.10.10.2:3000/visioncut/*`
+- LLM Gateway: Linux, 예시 `8000`(Ollama: `11434`, vLLM: 커스텀 포트)
+- FFmpeg: Linux 네이티브. 하드웨어 인코더 자동 탐지(NVENC 등)
+- SSH: `22`
+- 방화벽 허용 예시: `22, 3000, 8000(또는 11434)`
+
+#### 22.5 배포/실행 옵션
+- Bare‑metal(개발 속도): `python3-venv`, Node/PNPM, systemd(옵션)
+- Docker Compose(재현성): `docker`, `nvidia-container-toolkit`, `docker-compose`
+
+Compose 스케치(예시):
+```
+services:
+  artifex:
+    build: ./
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/workspace
+    environment:
+      - NODE_ENV=development
+    deploy: {}
+
+  llm-gateway:
+    image: ghcr.io/ollama/ollama:latest
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    ports:
+      - "11434:11434"
+```
+
+#### 22.6 CUDA/GPU 스택 지침
+- NVIDIA 드라이버와 CUDA/cuDNN은 배포판 권장 조합 사용(예: Ubuntu LTS 리포지토리)
+- PyTorch CUDA 빌드 설치 후 가속 라이브러리:
+  - xFormers/FlashAttention 사용 가능 시 활성화, 불가 시 **SDPA 기본 사용**(추론 dropout=0)
+  - 긴 시퀀스/배치 다양성은 per‑sample SDPA 고려
+- FFmpeg 하드웨어 가속: `nvidia-smi`, `ffmpeg -hwaccels`로 NVENC 가용성 검증
+
+#### 22.7 환경 변수/설정(발췌)
+- Visioncut 프록시: `VISIONCUT_DEV_PORT`, `VISIONCUT_BASE_PATH`
+- LLM 게이트웨이: `VISIONCUT_LLM_ENDPOINT=http://10.10.10.2:11434`(예시)
+- Electron/렌더러에서 `/visioncut` 프리픽스 경로 일관 유지
+
+#### 22.8 스모크 테스트(체크리스트)
+1) `ssh <user>@10.10.10.2` 접속 성공(비밀번호 미사용)
+2) `nvidia-smi` GPU 인식
+3) `python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"`
+4) `ffmpeg -hide_banner -hwaccels`에서 `cuda|cuvid|nvenc` 확인
+5) LLM 게이트웨이: `curl http://10.10.10.2:11434/api/tags` 또는 헬스체크
+6) Artifex 프록시: `curl http://10.10.10.2:3000/visioncut/health`(헬스 엔드포인트 구현 시)
+
+#### 22.9 운영/로깅/보안
+- 로그: `journalctl -u artifex.service`, Docker `logs -f`
+- 비밀: API 키는 OS Keyring/암호화 저장, 로그 마스킹 준수(§18)
+- 포트 최소 개방, SSH 접근 제한(IP 화이트리스트 가능)
+
+#### 22.10 준비 체크리스트(순서)
+1) Linux: `openssh-server`, `git`, `build-essential`, `cmake`, `python3-venv`, `ffmpeg` 설치
+2) Linux: 드라이버/CUDA/cuDNN 설치 후 재부팅, `nvidia-smi` 확인
+3) Linux: Docker + `nvidia-container-toolkit`(선택) 설치
+4) Linux: 리포지토리 클론, `.env` 정리(§17, §22.7)
+5) Windows: SSH 공개키 생성 → Linux `authorized_keys` 반영 → 접속 테스트
+6) 방화벽/포트 허용(§22.4)
+7) 런타임 기동(Bare‑metal 또는 Compose), §22.8 스모크 테스트 통과

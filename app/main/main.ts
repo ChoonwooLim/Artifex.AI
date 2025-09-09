@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn, ChildProcessWithoutNullStreams, execFileSync, exec } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { appUpdater } from './updater';
+import { getAppUpdater } from './updater';
 import { setupSecurityPolicy } from './security';
 import { startOllamaServer, stopOllamaServer } from './ollama';
 
@@ -90,6 +90,7 @@ function createWindow() {
   });
 
   // 자동 업데이트 설정
+  const appUpdater = getAppUpdater();
   appUpdater.setMainWindow(mainWindow);
 
   // 메뉴 설정
@@ -427,7 +428,7 @@ function createWindow() {
         {
           label: 'Check for Updates...',
           click: () => {
-            appUpdater.checkForUpdates();
+            getAppUpdater().checkForUpdates();
           }
         },
         {
@@ -481,8 +482,9 @@ function createWindow() {
   });
 }
 
-// Context menu handler
-ipcMain.on('show-context-menu', (event) => {
+// Context menu handler - Moved inside app.whenReady()
+function setupContextMenu() {
+  ipcMain.on('show-context-menu', (event) => {
   const template = [
     {
       label: 'Cut',
@@ -531,10 +533,12 @@ ipcMain.on('show-context-menu', (event) => {
   
   const menu = Menu.buildFromTemplate(template);
   menu.popup({ window: BrowserWindow.fromWebContents(event.sender)! });
-});
+  });
+}
 
-// Performance monitoring
-ipcMain.handle('get-performance-info', async () => {
+// Performance monitoring - Moved inside app.whenReady()
+function setupPerformanceHandlers() {
+  ipcMain.handle('get-performance-info', async () => {
   const metrics = app.getAppMetrics();
   const gpuInfo = await app.getGPUInfo('complete');
   return {
@@ -554,15 +558,22 @@ ipcMain.handle('clear-all-data', async () => {
   return { success: true };
 });
 
-ipcMain.handle('get-cache-size', async () => {
-  const ses = session.defaultSession;
-  const size = await ses.getCacheSize();
-  return size;
-});
+  ipcMain.handle('get-cache-size', async () => {
+    const ses = session.defaultSession;
+    const size = await ses.getCacheSize();
+    return size;
+  });
+}
 
 app.whenReady().then(() => {
   // Setup security policy
   setupSecurityPolicy();
+  
+  // Setup context menu handler
+  setupContextMenu();
+  
+  // Setup performance handlers
+  setupPerformanceHandlers();
   
   // Setup Ollama IPC handlers
   ipcMain.handle('start-ollama', async () => {
@@ -610,7 +621,7 @@ app.whenReady().then(() => {
   
   // 앱 시작 후 업데이트 체크 (5초 후)
   setTimeout(() => {
-    appUpdater.checkForUpdates();
+    getAppUpdater().checkForUpdates();
   }, 5000);
 
   app.on('activate', () => {

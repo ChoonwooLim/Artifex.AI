@@ -13,7 +13,13 @@ await build({
   target: 'node18',
   outfile: join(outDir, 'main.cjs'),
   format: 'cjs',
-  external: ['electron']
+  external: ['electron', 'electron-updater'],
+  loader: {
+    '.ts': 'ts'
+  },
+  define: {
+    'process.env.NODE_ENV': `"${process.env.NODE_ENV || 'production'}"`
+  }
 });
 
 await build({

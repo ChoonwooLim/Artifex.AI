@@ -6,25 +6,29 @@ export class AppUpdater {
   private mainWindow: BrowserWindow | null = null;
 
   constructor() {
-    // 개발 환경에서는 업데이트 체크 비활성화
-    if (process.env.NODE_ENV === 'development') {
+    // 개발 환경이나 app이 ready 되지 않은 상태에서는 업데이트 체크 비활성화
+    if (process.env.NODE_ENV === 'development' || !app.isReady()) {
       return;
     }
 
-    // 업데이트 서버 설정
-    autoUpdater.setFeedURL({
-      provider: 'github',
-      owner: 'artifex-ai',
-      repo: 'artifex-studio',
-      private: false,
-    });
+    try {
+      // 업데이트 서버 설정
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: 'artifex-ai',
+        repo: 'artifex-studio',
+        private: false,
+      });
 
-    // 자동 다운로드 비활성화 (사용자 확인 후 다운로드)
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
+      // 자동 다운로드 비활성화 (사용자 확인 후 다운로드)
+      autoUpdater.autoDownload = false;
+      autoUpdater.autoInstallOnAppQuit = true;
 
-    // 업데이트 이벤트 핸들러 설정
-    this.setupEventHandlers();
+      // 업데이트 이벤트 핸들러 설정
+      this.setupEventHandlers();
+    } catch (error) {
+      console.error('[Updater] Failed to initialize:', error);
+    }
   }
 
   setMainWindow(window: BrowserWindow) {
@@ -125,5 +129,14 @@ export class AppUpdater {
   }
 }
 
-// 싱글톤 인스턴스
-export const appUpdater = new AppUpdater();
+// 싱글톤 인스턴스 - app.whenReady() 이후에 생성하도록 수정
+let appUpdaterInstance: AppUpdater | null = null;
+
+export function getAppUpdater(): AppUpdater {
+  if (!appUpdaterInstance) {
+    appUpdaterInstance = new AppUpdater();
+  }
+  return appUpdaterInstance;
+}
+
+export const appUpdater = appUpdaterInstance;
