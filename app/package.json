@@ -14,7 +14,7 @@
     "dist": "electron-builder"
   },
   "keywords": [],
-  "author": "",
+  "author": "Artifex AI",
   "license": "MIT",
   "devDependencies": {
     "@types/react": "^18.3.5",
@@ -78,7 +78,6 @@
           ]
         }
       ],
-      "icon": "build-resources/icon.ico",
       "certificateFile": null,
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "requireAdministrator"
@@ -91,10 +90,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Artifex AI Studio",
-      "installerIcon": "build-resources/icon.ico",
-      "uninstallerIcon": "build-resources/icon.ico",
-      "installerHeaderIcon": "build-resources/icon.ico",
-      "license": "build-resources/license.txt",
       "warningsAsErrors": false,
       "menuCategory": true,
       "artifactName": "ArtifexAI-Setup-${version}.${ext}",

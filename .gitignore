@@ -139,9 +139,20 @@ models/ollama/
 
 # Installer files
 dist-installer/
+app/dist-installer/
 *.msi
 *.nsis
+*.nsi
 OllamaSetup.exe
+
+# Artifex AI Release packages
+ArtifexAI-Release-Package/
+ArtifexAI-v*.zip
+ArtifexAI-Setup-*.exe
+ArtifexAI-FullSetup-*.exe
+app/installer/*.exe
+app/installer/*.msi
+app/installer/temp/
 
 # AutoShorts temporary files
 app/renderer/autoshorts/temp/
