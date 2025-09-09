@@ -100,14 +100,6 @@
         "ko_KR"
       ],
       "guid": "a8c7d3e4-2b5f-4d6e-9c1a-8f7e6d5c4b3a"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "artifex-ai",
-        "repo": "artifex-studio",
-        "releaseType": "release"
-      }
-    ]
+    }
   }
 }

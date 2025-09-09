@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'n
 import { getAppUpdater } from './updater';
 import { setupSecurityPolicy } from './security';
 import { startOllamaServer, stopOllamaServer } from './ollama';
+import { setupDualGPUHandlers } from './dual-gpu-handler';
 
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
@@ -574,6 +575,11 @@ app.whenReady().then(() => {
   
   // Setup performance handlers
   setupPerformanceHandlers();
+  
+  // Setup Dual GPU handlers
+  if (mainWindow) {
+    setupDualGPUHandlers(mainWindow);
+  }
   
   // Setup Ollama IPC handlers
   ipcMain.handle('start-ollama', async () => {

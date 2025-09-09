@@ -6,6 +6,13 @@ export class AppUpdater {
   private mainWindow: BrowserWindow | null = null;
 
   constructor() {
+    // 자동 업데이트 기능 비활성화
+    // GitHub 레포지토리가 없거나 private인 경우 오류 방지
+    console.log('[Updater] Auto-update disabled');
+    return;
+    
+    // 향후 GitHub 레포지토리 생성 시 아래 주석 해제
+    /*
     // 개발 환경이나 app이 ready 되지 않은 상태에서는 업데이트 체크 비활성화
     if (process.env.NODE_ENV === 'development' || !app.isReady()) {
       return;
@@ -29,6 +36,7 @@ export class AppUpdater {
     } catch (error) {
       console.error('[Updater] Failed to initialize:', error);
     }
+    */
   }
 
   setMainWindow(window: BrowserWindow) {
@@ -36,7 +44,10 @@ export class AppUpdater {
   }
 
   checkForUpdates() {
-    autoUpdater.checkForUpdatesAndNotify();
+    // 업데이트 체크 비활성화
+    console.log('[Updater] Update check skipped (disabled)');
+    return;
+    // autoUpdater.checkForUpdatesAndNotify();
   }
 
   private setupEventHandlers() {
