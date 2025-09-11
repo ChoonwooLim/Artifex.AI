@@ -4,7 +4,7 @@
  */
 
 import { ipcMain, BrowserWindow } from 'electron';
-import { spawn } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -95,6 +95,36 @@ export function setupDualGPUHandlers(mainWindow: BrowserWindow) {
       local: localCuda,
       remote: remoteCuda
     };
+  });
+
+  // 로컬 GPU 정보 가져오기
+  ipcMain.handle('dual-gpu:get-local-gpu-info', async () => {
+    try {
+      const pythonPath = 'python';
+      const code = `
+import json
+result = {"name": "Unknown", "memory_total": 0, "memory_free": 0, "utilization": 0}
+try:
+    import torch
+    if torch.cuda.is_available():
+        result["name"] = torch.cuda.get_device_name(0)
+        result["memory_total"] = torch.cuda.get_device_properties(0).total_memory
+        result["memory_free"] = result["memory_total"] - torch.cuda.memory_allocated(0)
+        # Can't get utilization from PyTorch directly
+except:
+    pass
+print(json.dumps(result))
+`;
+      
+      const out = execFileSync(pythonPath, ['-c', code], { 
+        encoding: 'utf-8',
+        timeout: 5000
+      });
+      
+      return JSON.parse(out);
+    } catch (error) {
+      return null;
+    }
   });
 
   // 비디오 생성 작업 제출

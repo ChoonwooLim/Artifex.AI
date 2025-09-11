@@ -1,6 +1,9 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import { ipcMain } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
 const execAsync = promisify(exec);
 
@@ -11,6 +14,23 @@ export class PopOSServerManager {
   private maxRetries: number = 3;
   private retryDelay: number = 2000;
   private healthCheckInterval: NodeJS.Timeout | null = null;
+  private autoStartEnabled: boolean = true;
+  private sshKeyPath: string;
+  private sshUser: string = 'stevenlim';
+  private sshHost: string = '10.0.0.2';
+  private serverScript: string = '~/wan_server/popos_wan_server_pro.py';
+
+  constructor() {
+    // Check for SSH key
+    const homeDir = os.homedir();
+    this.sshKeyPath = path.join(homeDir, '.ssh', 'popos_rsa');
+    
+    // Check if SSH key exists, if not use config alias
+    if (!fs.existsSync(this.sshKeyPath)) {
+      console.log('SSH key not found, will use SSH config alias "popos"');
+      this.sshKeyPath = '';
+    }
+  }
 
   async startServer(): Promise<{ success: boolean; message: string }> {
     // Reset retry count
@@ -33,7 +53,12 @@ export class PopOSServerManager {
         await this.killExistingProcess();
         
         // SSH로 서버 시작 (백그라운드)
-        const command = `ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no stevenlim@10.0.0.2 "nohup python3 ~/popos_worker.py > ~/popos_worker.log 2>&1 & echo \\$!"`;
+        const sshCmd = this.sshKeyPath 
+          ? `ssh -i "${this.sshKeyPath}" -o ConnectTimeout=10 -o StrictHostKeyChecking=no -o PasswordAuthentication=no ${this.sshUser}@${this.sshHost}`
+          : `ssh popos`;
+        
+        const command = `${sshCmd} "cd ~/wan_server && nohup python3 popos_wan_server_pro.py > ~/popos_wan_server.log 2>&1 & echo \\$!"`;
+        console.log('Starting PopOS server with command:', command);
         const { stdout } = await execAsync(command);
         
         this.serverPID = stdout.trim();
@@ -47,7 +72,7 @@ export class PopOSServerManager {
         const timeout = setTimeout(() => controller.abort(), 5000);
         
         try {
-          const testResponse = await fetch('http://10.0.0.2:8000/', {
+          const testResponse = await fetch('http://10.0.0.2:8001/', {
             signal: controller.signal
           });
           clearTimeout(timeout);
@@ -85,7 +110,11 @@ export class PopOSServerManager {
   
   private async killExistingProcess(): Promise<void> {
     try {
-      await execAsync(`ssh -o ConnectTimeout=5 stevenlim@10.0.0.2 "pkill -f popos_worker.py || true"`);
+      const sshCmd = this.sshKeyPath 
+        ? `ssh -i "${this.sshKeyPath}" -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o PasswordAuthentication=no ${this.sshUser}@${this.sshHost}`
+        : `ssh popos`;
+      
+      await execAsync(`${sshCmd} "pkill -f popos_wan_server_pro.py || true"`);
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch {
       // Ignore errors - process might not exist
@@ -123,7 +152,11 @@ export class PopOSServerManager {
       this.stopHealthCheck();
       
       // 서버 종료
-      const command = `ssh -o ConnectTimeout=5 stevenlim@10.0.0.2 "pkill -f popos_worker.py"`;
+      const sshCmd = this.sshKeyPath 
+        ? `ssh -i "${this.sshKeyPath}" -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o PasswordAuthentication=no ${this.sshUser}@${this.sshHost}`
+        : `ssh popos`;
+      
+      const command = `${sshCmd} "pkill -f popos_wan_server_pro.py"`;
       await execAsync(command);
       
       this.isRunning = false;
@@ -139,7 +172,7 @@ export class PopOSServerManager {
 
   async checkStatus(): Promise<{ running: boolean; gpuInfo?: any; error?: string }> {
     try {
-      const response = await fetch('http://10.0.0.2:8000/gpu/info', { 
+      const response = await fetch('http://10.0.0.2:8001/system/status', { 
         method: 'GET',
         signal: AbortSignal.timeout(3000)
       });
@@ -170,10 +203,49 @@ export class PopOSServerManager {
   getStatus(): boolean {
     return this.isRunning;
   }
+
+  async enableAutoStart(enabled: boolean): Promise<void> {
+    this.autoStartEnabled = enabled;
+    console.log(`PopOS server auto-start ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  async autoStart(): Promise<void> {
+    if (!this.autoStartEnabled) {
+      console.log('PopOS server auto-start is disabled');
+      return;
+    }
+
+    console.log('Auto-starting PopOS server...');
+    const result = await this.startServer();
+    if (result.success) {
+      console.log('PopOS server auto-started successfully');
+    } else {
+      console.error('Failed to auto-start PopOS server:', result.message);
+    }
+  }
+
+  async ensureSSHKey(): Promise<boolean> {
+    // Check if SSH key exists
+    if (fs.existsSync(this.sshKeyPath)) {
+      return true;
+    }
+
+    // Check if SSH config alias exists
+    const configPath = path.join(os.homedir(), '.ssh', 'config');
+    if (fs.existsSync(configPath)) {
+      const config = fs.readFileSync(configPath, 'utf-8');
+      if (config.includes('Host popos')) {
+        return true;
+      }
+    }
+
+    console.warn('SSH key not found. Please run setup_ssh_keys.py to configure passwordless authentication.');
+    return false;
+  }
 }
 
 // IPC 핸들러 등록
-export function registerPopOSHandlers() {
+export function registerPopOSHandlers(): PopOSServerManager {
   const serverManager = new PopOSServerManager();
 
   ipcMain.handle('popos:start', async () => {
@@ -188,10 +260,22 @@ export function registerPopOSHandlers() {
     return await serverManager.checkStatus();
   });
 
+  ipcMain.handle('popos:setAutoStart', async (_, enabled: boolean) => {
+    await serverManager.enableAutoStart(enabled);
+    return { success: true };
+  });
+
+  ipcMain.handle('popos:ensureSSHKey', async () => {
+    return await serverManager.ensureSSHKey();
+  });
+
   // 앱 종료 시 서버도 종료
   ipcMain.on('before-quit', async () => {
     if (serverManager.getStatus()) {
+      console.log('Stopping PopOS server before quit...');
       await serverManager.stopServer();
     }
   });
+
+  return serverManager;
 }

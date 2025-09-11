@@ -39,20 +39,20 @@ const TabContainer = styled.div`
   padding: 20px 30px 0;
 `;
 
-const Tab = styled.button<{ active: boolean }>`
+const Tab = styled.button<{ $active: boolean }>`
   padding: 12px 24px;
-  background: ${props => props.active ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
+  background: ${props => props.$active ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-bottom: none;
   border-radius: 12px 12px 0 0;
-  color: ${props => props.active ? '#667eea' : 'rgba(255, 255, 255, 0.7)'};
+  color: ${props => props.$active ? '#667eea' : 'rgba(255, 255, 255, 0.7)'};
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
 
   &:hover {
-    background: ${props => props.active ? 'rgba(102, 126, 234, 0.3)' : 'rgba(255, 255, 255, 0.08)'};
+    background: ${props => props.$active ? 'rgba(102, 126, 234, 0.3)' : 'rgba(255, 255, 255, 0.08)'};
   }
 `;
 
@@ -504,31 +504,31 @@ export const AutoShortsView: React.FC = () => {
 
       <TabContainer>
         <Tab 
-          active={activeTab === 'video'} 
+          $active={activeTab === 'video'} 
           onClick={() => setActiveTab('video')}
         >
           📹 Video Editor
         </Tab>
         <Tab 
-          active={activeTab === 'chat'} 
+          $active={activeTab === 'chat'} 
           onClick={() => setActiveTab('chat')}
         >
           💬 AI Chat
         </Tab>
         <Tab 
-          active={activeTab === 'analysis'} 
+          $active={activeTab === 'analysis'} 
           onClick={() => setActiveTab('analysis')}
         >
           📊 Analysis
         </Tab>
         <Tab 
-          active={activeTab === 'audio'} 
+          $active={activeTab === 'audio'} 
           onClick={() => setActiveTab('audio')}
         >
           🎵 AI Audio
         </Tab>
         <Tab 
-          active={activeTab === 'settings'} 
+          $active={activeTab === 'settings'} 
           onClick={() => setActiveTab('settings')}
         >
           ⚙️ Settings

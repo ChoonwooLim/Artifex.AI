@@ -954,7 +954,7 @@ const App: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'rgba(255,255,255,0.9)', fontSize: '14px', fontWeight: '600' }}>FPS</label>
-                    <select style={{ 
+                    <select defaultValue="16" style={{ 
                       width: '100%', 
                       padding: '10px', 
                       background: 'rgba(255,255,255,0.1)', 
@@ -966,7 +966,7 @@ const App: React.FC = () => {
                     }}>
                       <option value="8">8 FPS</option>
                       <option value="12">12 FPS</option>
-                      <option value="16" selected>16 FPS</option>
+                      <option value="16">16 FPS</option>
                       <option value="24">24 FPS</option>
                       <option value="30">30 FPS</option>
                     </select>

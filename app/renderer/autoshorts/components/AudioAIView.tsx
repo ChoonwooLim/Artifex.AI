@@ -704,10 +704,10 @@ export const AudioAIView: React.FC = () => {
             </InputGroup>
             <InputGroup>
               <Label>말하기 속도</Label>
-              <Select>
+              <Select defaultValue="보통 (1.0x)">
                 <option>매우 느림 (0.5x)</option>
                 <option>느림 (0.75x)</option>
-                <option selected>보통 (1.0x)</option>
+                <option>보통 (1.0x)</option>
                 <option>빠름 (1.25x)</option>
                 <option>매우 빠름 (1.5x)</option>
               </Select>

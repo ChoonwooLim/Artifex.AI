@@ -593,7 +593,7 @@ ipcMain.handle('clear-all-data', async () => {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Setup security policy
   setupSecurityPolicy();
   
@@ -603,8 +603,20 @@ app.whenReady().then(() => {
   // Setup performance handlers
   setupPerformanceHandlers();
   
-  // Setup PopOS Server handlers
-  registerPopOSHandlers();
+  // Setup PopOS Server handlers and auto-start
+  const poposServerManager = registerPopOSHandlers();
+  
+  // Auto-start PopOS server if SSH key is configured
+  setTimeout(async () => {
+    const hasSSHKey = await poposServerManager.ensureSSHKey();
+    if (hasSSHKey) {
+      console.log('SSH key found, auto-starting PopOS server...');
+      await poposServerManager.autoStart();
+    } else {
+      console.warn('SSH key not configured. PopOS server will not auto-start.');
+      console.warn('Run "python setup_ssh_keys.py" to configure passwordless SSH.');
+    }
+  }, 3000); // Delay to ensure app is fully loaded
   
   // Setup Ollama IPC handlers
   ipcMain.handle('start-ollama', async () => {
@@ -1244,54 +1256,7 @@ ipcMain.handle('dual-gpu:set-flash-attention', async (_e, enabled: boolean) => {
   return { success: true, enabled: flashAttentionEnabled };
 });
 
-ipcMain.handle('dual-gpu:get-local-gpu-info', async () => {
-  try {
-    const pythonPath = 'python';
-    const code = `
-import json
-result = {"name": "Unknown", "memory_total": 0, "memory_free": 0, "utilization": 0}
-try:
-    import torch
-    if torch.cuda.is_available():
-        result["name"] = torch.cuda.get_device_name(0)
-        result["memory_total"] = torch.cuda.get_device_properties(0).total_memory
-        result["memory_free"] = result["memory_total"] - torch.cuda.memory_allocated(0)
-        # Can't get utilization from PyTorch directly
-except:
-    pass
-print(json.dumps(result))
-`;
-    
-    const out = execFileSync(pythonPath, ['-c', code], { 
-      encoding: 'utf-8',
-      timeout: 5000
-    });
-    
-    return JSON.parse(out);
-  } catch (error) {
-    return null;
-  }
-});
+// Moved get-local-gpu-info handler to dual-gpu-handler.ts
 
-ipcMain.handle('dual-gpu:check-connection', async () => {
-  try {
-    const response = await fetch('http://10.0.0.2:8000/')
-      .then(res => res.json())
-      .catch(() => null);
-    
-    return { connected: !!response, details: response };
-  } catch (error) {
-    return { connected: false, error: String(error) };
-  }
-});
-
-ipcMain.handle('dual-gpu:restart-worker', async () => {
-  try {
-    // This would restart the PopOS worker
-    // For now, just return a message
-    return { success: false, message: 'Please restart the PopOS worker manually' };
-  } catch (error: any) {
-    return { success: false, message: error.message || String(error) };
-  }
-});
+// Removed duplicate handlers - these are now defined in dual-gpu-handler.ts
 

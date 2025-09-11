@@ -42,6 +42,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   popOSStart: () => ipcRenderer.invoke('popos:start'),
   popOSStop: () => ipcRenderer.invoke('popos:stop'),
   popOSStatus: () => ipcRenderer.invoke('popos:status'),
+  popOSSetAutoStart: (enabled: boolean) => ipcRenderer.invoke('popos:setAutoStart', enabled),
+  popOSEnsureSSHKey: () => ipcRenderer.invoke('popos:ensureSSHKey'),
 });
 
 contextBridge.exposeInMainWorld('electron', {
