@@ -9,6 +9,7 @@ import Flow from './workflow/Flow';
 import SimpleFlow from './workflow/SimpleFlow';
 import { AutoShortsView } from './views/AutoShortsView';
 import DualSystemSettings from './components/DualSystemSettings';
+import PopOSServerControl from './components/PopOSServerControl';
 
 declare global {
   interface Window {
@@ -37,6 +38,7 @@ declare global {
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 's2v' | 'autoshorts' | 'dualsystem'>('wan');
   const [isAnimated, setIsAnimated] = useState(false);
+  const [showPopOSControl, setShowPopOSControl] = useState(false);
 
   // WAN generation states
   const [task, setTask] = useState<'t2v-A14B' | 'i2v-A14B' | 'ti2v-5B'>('ti2v-5B');
@@ -93,6 +95,12 @@ const App: React.FC = () => {
         s.outputName && setOutputName(s.outputName);
       }
     })();
+    
+    // Check if PopOS control should be shown
+    const savedPopOSPref = localStorage.getItem('show-popos-control');
+    if (savedPopOSPref === 'true') {
+      setShowPopOSControl(true);
+    }
   }, []);
 
   const navItems = [
@@ -403,6 +411,43 @@ const App: React.FC = () => {
           padding: '20px',
           borderTop: '1px solid rgba(255,255,255,0.1)'
         }}>
+          <button
+            onClick={() => {
+              setShowPopOSControl(!showPopOSControl);
+              localStorage.setItem('show-popos-control', String(!showPopOSControl));
+            }}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: showPopOSControl ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(102,126,234,0.2)',
+              color: '#fff',
+              border: '1px solid rgba(102,126,234,0.3)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s'
+            }}
+            onMouseEnter={(e) => {
+              if (!showPopOSControl) {
+                e.currentTarget.style.background = 'rgba(102,126,234,0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showPopOSControl) {
+                e.currentTarget.style.background = 'rgba(102,126,234,0.2)';
+              }
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>🖥️</span>
+            <span>PopOS Server</span>
+            <span style={{ marginLeft: 'auto', fontSize: '12px' }}>
+              {showPopOSControl ? 'ON' : 'OFF'}
+            </span>
+          </button>
           <div style={{
             fontSize: '12px',
             color: 'rgba(255,255,255,0.4)',
@@ -1107,6 +1152,9 @@ const App: React.FC = () => {
           accent-color: #667eea;
         }
       `}</style>
+      
+      {/* PopOS Server Control Panel */}
+      {showPopOSControl && <PopOSServerControl />}
       </div>
     </div>
   );
