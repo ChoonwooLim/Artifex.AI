@@ -246,7 +246,7 @@ export const GPUMonitorDashboard: React.FC = () => {
       // Get remote GPU metrics
       let remoteGPU: GPUMetrics | undefined;
       try {
-        const response = await fetch('http://10.0.0.2:8000/gpu/info');
+        const response = await fetch('http://10.0.0.2:8001/api/v1/gpu/info');
         if (response.ok) {
           const data = await response.json();
           if (data.gpus && data.gpus[0]) {

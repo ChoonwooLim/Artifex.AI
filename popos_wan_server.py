@@ -18,7 +18,7 @@ import base64
 import tempfile
 
 # Add WAN path
-sys.path.append('/home/choon/Wan2.2')
+sys.path.append('/home/stevenlim/ArtifexPro')
 
 class WANGenerationHandler(BaseHTTPRequestHandler):
     
@@ -91,7 +91,7 @@ class WANGenerationHandler(BaseHTTPRequestHandler):
     def get_available_models(self):
         """Check available WAN models"""
         models = {}
-        base_path = Path("/home/choon")
+        base_path = Path("/home/stevenlim/ArtifexPro/models")
         
         # Check for each model type
         model_dirs = [
@@ -144,7 +144,7 @@ class WANGenerationHandler(BaseHTTPRequestHandler):
             output_dir = params.get('output_dir', '/tmp/wan_output')
             
             # Prepare model paths
-            model_path = f"/home/choon/Wan2.2-{task.upper()}"
+            model_path = f"/home/stevenlim/ArtifexPro/models/Wan2.2-{task.upper()}"
             if not Path(model_path).exists():
                 return {
                     "success": False,
@@ -158,7 +158,7 @@ class WANGenerationHandler(BaseHTTPRequestHandler):
             
             # Build generation command with Flash Attention
             cmd = [
-                "python", "/home/choon/Wan2.2/generate.py",
+                "python", "/home/stevenlim/ArtifexPro/generate.py",
                 "--task", task,
                 "--ckpt_dir", model_path,
                 "--prompt", prompt,

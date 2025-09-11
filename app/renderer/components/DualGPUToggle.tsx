@@ -230,7 +230,7 @@ export const DualGPUToggle: React.FC = () => {
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
       try {
-        const response = await fetch('http://10.0.0.2:8000/gpu/info', {
+        const response = await fetch('http://10.0.0.2:8001/api/v1/gpu/info', {
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -297,7 +297,7 @@ export const DualGPUToggle: React.FC = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
-      const response = await fetch('http://10.0.0.2:8000/', {
+      const response = await fetch('http://10.0.0.2:8001/', {
         signal: controller.signal
       });
       clearTimeout(timeoutId);

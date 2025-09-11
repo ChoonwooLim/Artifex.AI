@@ -222,7 +222,7 @@ export const FlashAttentionToggle: React.FC = () => {
       const timeoutId = setTimeout(() => controller.abort(), 3000);
       
       try {
-        const response = await fetch('http://10.0.0.2:8000/flash/status', {
+        const response = await fetch('http://10.0.0.2:8001/api/v1/flash/status', {
           signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -290,7 +290,7 @@ export const FlashAttentionToggle: React.FC = () => {
   const runBenchmark = async () => {
     setIsBenchmarking(true);
     try {
-      const response = await fetch('http://10.0.0.2:8000/flash/benchmark');
+      const response = await fetch('http://10.0.0.2:8001/api/v1/flash/benchmark');
       if (response.ok) {
         const data = await response.json();
         

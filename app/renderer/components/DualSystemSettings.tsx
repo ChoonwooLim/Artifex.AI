@@ -193,7 +193,7 @@ export const DualSystemSettings: React.FC = () => {
 
   const handleBenchmark = async () => {
     try {
-      const response = await fetch('http://10.0.0.2:8000/flash/benchmark');
+      const response = await fetch('http://10.0.0.2:8001/api/v1/flash/benchmark');
       if (response.ok) {
         const data = await response.json();
         alert(`Benchmark Complete!\n\nResults saved to console.`);
@@ -217,7 +217,7 @@ export const DualSystemSettings: React.FC = () => {
       const serverStatus = localStorage.getItem('popos-server-status');
       if (serverStatus === 'running') {
         try {
-          const response = await fetch('http://10.0.0.2:8000/flash/status');
+          const response = await fetch('http://10.0.0.2:8001/api/v1/flash/status');
           if (response.ok) {
             const data = await response.json();
             const hasFlash = data.flash_attn || data.xformers;
@@ -357,7 +357,7 @@ export const DualSystemSettings: React.FC = () => {
             <InfoGrid>
               <InfoItem>
                 <InfoLabel>Worker URL</InfoLabel>
-                <InfoValue>http://10.0.0.2:8000</InfoValue>
+                <InfoValue>http://10.0.0.2:8001</InfoValue>
               </InfoItem>
               <InfoItem>
                 <InfoLabel>Max Batch Size</InfoLabel>

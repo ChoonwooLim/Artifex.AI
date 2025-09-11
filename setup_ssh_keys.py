@@ -91,7 +91,7 @@ def setup_ssh_keys():
     
     return str(key_file), str(pub_key_file)
 
-def copy_key_to_popos(pub_key_file, host="10.0.0.2", user="choon"):
+def copy_key_to_popos(pub_key_file, host="10.0.0.2", user="stevenlim"):
     """Copy public key to PopOS server"""
     print(f"\nCopying public key to PopOS server ({user}@{host})...")
     
@@ -133,7 +133,7 @@ def copy_key_to_popos(pub_key_file, host="10.0.0.2", user="choon"):
         print(f"3. Add the key to ~/.ssh/authorized_keys")
         return False
 
-def test_connection(key_file, host="10.0.0.2", user="choon"):
+def test_connection(key_file, host="10.0.0.2", user="stevenlim"):
     """Test passwordless SSH connection"""
     print(f"\nTesting passwordless connection to {user}@{host}...")
     
@@ -147,7 +147,7 @@ def test_connection(key_file, host="10.0.0.2", user="choon"):
         print(f"[ERROR] Connection test failed: {stderr}")
         return False
 
-def create_ssh_config(key_file, host="10.0.0.2", user="choon"):
+def create_ssh_config(key_file, host="10.0.0.2", user="stevenlim"):
     """Create SSH config entry for easy access"""
     ssh_dir = Path.home() / ".ssh"
     config_file = ssh_dir / "config"

@@ -8,7 +8,7 @@ import { spawn, execFileSync } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 
-const WORKER_URL = 'http://10.0.0.2:8000';
+const WORKER_URL = 'http://10.0.0.2:8001';
 let workerAvailable = false;
 
 interface GPUInfo {
@@ -479,7 +479,7 @@ async function mergeVideos(video1Path: string, video2Path: string): Promise<stri
 
 async function executeSSHCommand(command: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const ssh = spawn('ssh', ['choon@10.0.0.2', command]);
+    const ssh = spawn('ssh', ['stevenlim@10.0.0.2', command]);
     
     let output = '';
     let error = '';

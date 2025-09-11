@@ -43,7 +43,7 @@ cd app && npm run dev        # 개발 모드
 cd app && npm run dist       # 인스톨러 생성
 
 # PopOS 서버
-ssh choon@10.0.0.2           # PopOS 접속
+ssh stevenlim@10.0.0.2       # PopOS 접속
 python3 ~/popos_wan_server.py # 서버 시작
 watch -n 1 nvidia-smi        # GPU 모니터
 
