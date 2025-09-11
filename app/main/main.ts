@@ -576,11 +576,6 @@ app.whenReady().then(() => {
   // Setup performance handlers
   setupPerformanceHandlers();
   
-  // Setup Dual GPU handlers
-  if (mainWindow) {
-    setupDualGPUHandlers(mainWindow);
-  }
-  
   // Setup Ollama IPC handlers
   ipcMain.handle('start-ollama', async () => {
     try {
@@ -624,6 +619,11 @@ app.whenReady().then(() => {
   });
   
   createWindow();
+  
+  // Setup Dual GPU handlers after window is created
+  if (mainWindow) {
+    setupDualGPUHandlers(mainWindow);
+  }
   
   // 앱 시작 후 업데이트 체크 (5초 후)
   setTimeout(() => {

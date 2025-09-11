@@ -8,6 +8,7 @@ import CinematicControls from './workflow/CinematicControls';
 import Flow from './workflow/Flow';
 import SimpleFlow from './workflow/SimpleFlow';
 import { AutoShortsView } from './views/AutoShortsView';
+import DualSystemSettings from './components/DualSystemSettings';
 
 declare global {
   interface Window {
@@ -34,7 +35,7 @@ declare global {
 }
 
 const App: React.FC = () => {
-  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 's2v' | 'autoshorts'>('wan');
+  const [activeView, setActiveView] = useState<'wan' | 'editor' | 'timeline' | 'effects' | 'export' | 'cinematic' | 'flow' | 'node' | 's2v' | 'autoshorts' | 'dualsystem'>('wan');
   const [isAnimated, setIsAnimated] = useState(false);
 
   // WAN generation states
@@ -98,6 +99,7 @@ const App: React.FC = () => {
     { id: 'wan', label: 'WAN Generate', icon: '🎬' },
     { id: 's2v', label: 'Speech to Video', icon: '🎙️' },
     { id: 'autoshorts', label: 'VisionCut.AI', icon: '🤖' },
+    { id: 'dualsystem', label: 'Dual GPU System', icon: '🚀' },
     { id: 'editor', label: 'Node Editor', icon: '🎨' },
     { id: 'timeline', label: 'Timeline', icon: '⏱️' },
     { id: 'effects', label: 'Effects', icon: '✨' },
@@ -1038,6 +1040,10 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
+          )}
+
+          {activeView === 'dualsystem' && (
+            <DualSystemSettings />
           )}
         </div>
       </div>

@@ -27,6 +27,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPerformanceInfo: () => ipcRenderer.invoke('get-performance-info'),
   clearAllData: () => ipcRenderer.invoke('clear-all-data'),
   getCacheSize: () => ipcRenderer.invoke('get-cache-size'),
+  // Dual GPU APIs
+  checkDualGPUConnection: () => ipcRenderer.invoke('dual-gpu:check-connection'),
+  getDualGPUInfo: () => ipcRenderer.invoke('dual-gpu:get-info'),
+  checkCuda: () => ipcRenderer.invoke('dual-gpu:check-cuda'),
+  generateVideoWithDualGPU: (options: any) => ipcRenderer.invoke('dual-gpu:generate-video', options),
+  getTaskStatus: (taskId: string) => ipcRenderer.invoke('dual-gpu:task-status', taskId),
+  downloadResult: (taskId: string, outputPath: string) => ipcRenderer.invoke('dual-gpu:download-result', taskId, outputPath),
+  restartWorker: () => ipcRenderer.invoke('dual-gpu:restart-worker'),
+  setDualGPUMode: (enabled: boolean) => ipcRenderer.invoke('dual-gpu:set-mode', enabled),
+  setFlashAttention: (enabled: boolean) => ipcRenderer.invoke('dual-gpu:set-flash-attention', enabled),
+  getLocalGPUInfo: () => ipcRenderer.invoke('dual-gpu:get-local-gpu-info'),
 });
 
 contextBridge.exposeInMainWorld('electron', {

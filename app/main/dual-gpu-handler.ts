@@ -5,7 +5,6 @@
 
 import { ipcMain, BrowserWindow } from 'electron';
 import { spawn } from 'child_process';
-import fetch from 'node-fetch';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -182,7 +181,12 @@ export function setupDualGPUHandlers(mainWindow: BrowserWindow) {
 
 async function checkWorkerConnection() {
   try {
-    const response = await fetch(WORKER_URL, { timeout: 5000 });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch(WORKER_URL, { signal: controller.signal });
+    clearTimeout(timeout);
+    
     workerAvailable = response.ok;
     console.log(`[DualGPU] Worker status: ${workerAvailable ? 'Connected' : 'Disconnected'}`);
   } catch {

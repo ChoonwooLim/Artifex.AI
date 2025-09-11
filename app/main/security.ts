@@ -10,15 +10,15 @@ export function setupSecurityPolicy() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           isDev
-            ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' file: http://localhost:* ws://localhost:*; " +
+            ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' file: http://localhost:* ws://localhost:* http://10.0.0.2:*; " +
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-              "connect-src 'self' http://localhost:* ws://localhost:* https://ollama.com; " +
+              "connect-src 'self' http://localhost:* ws://localhost:* https://ollama.com http://10.0.0.2:* ws://10.0.0.2:*; " +
               "img-src 'self' data: blob: file: http://localhost:*; " +
               "media-src 'self' file: blob: http://localhost:*; " +
               "style-src 'self' 'unsafe-inline';"
-            : "default-src 'self' 'unsafe-inline' file:; " +
+            : "default-src 'self' 'unsafe-inline' file: http://10.0.0.2:*; " +
               "script-src 'self' 'unsafe-inline'; " +
-              "connect-src 'self' http://localhost:11434; " +
+              "connect-src 'self' http://localhost:11434 http://10.0.0.2:* ws://10.0.0.2:*; " +
               "img-src 'self' data: blob: file:; " +
               "media-src 'self' file: blob:; " +
               "style-src 'self' 'unsafe-inline';"

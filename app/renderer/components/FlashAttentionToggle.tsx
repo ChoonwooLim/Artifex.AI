@@ -173,32 +173,61 @@ export const FlashAttentionToggle: React.FC = () => {
   const checkFlashAttentionStatus = async () => {
     setIsChecking(true);
     try {
-      // Check PopOS worker Flash Attention status
-      const response = await fetch('http://10.0.0.2:8000/flash/status');
-      if (response.ok) {
-        const data = await response.json();
-        
-        const available = data.flash_attn || data.xformers;
-        let method: 'flash_attn' | 'xformers' | 'standard' = 'standard';
-        
-        if (data.flash_attn) {
-          method = 'flash_attn';
-        } else if (data.xformers) {
-          method = 'xformers';
-        }
-        
-        setStatus({
-          available,
-          method,
-          gpuSupport: data.cuda_available,
-          expectedSpeedup: method === 'flash_attn' ? '2-4x' : method === 'xformers' ? '1.5-3x' : '1x',
-          memoryReduction: method === 'flash_attn' ? '10-20x' : method === 'xformers' ? '5-10x' : '1x'
+      // Check PopOS worker Flash Attention status with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      try {
+        const response = await fetch('http://10.0.0.2:8000/flash/status', {
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
         
-        // Auto-enable if available
-        if (available) {
-          setEnabled(true);
+        if (response.ok) {
+          const data = await response.json();
+          
+          const available = data.flash_attn || data.xformers;
+          let method: 'flash_attn' | 'xformers' | 'standard' = 'standard';
+          
+          if (data.flash_attn) {
+            method = 'flash_attn';
+          } else if (data.xformers) {
+            method = 'xformers';
+          }
+          
+          setStatus({
+            available,
+            method,
+            gpuSupport: data.cuda_available,
+            expectedSpeedup: method === 'flash_attn' ? '2-4x' : method === 'xformers' ? '1.5-3x' : '1x',
+            memoryReduction: method === 'flash_attn' ? '10-20x' : method === 'xformers' ? '5-10x' : '1x'
+          });
+          
+          // Auto-enable if available
+          if (available) {
+            setEnabled(true);
+          }
+        } else {
+          // Remote server responded but with error
+          console.log('Flash Attention check failed, using standard attention');
+          setStatus({
+            available: false,
+            method: 'standard',
+            gpuSupport: false,
+            expectedSpeedup: '1x',
+            memoryReduction: '1x'
+          });
         }
+      } catch (fetchError) {
+        // Connection failed or timeout
+        console.log('PopOS worker not available for Flash Attention, using standard mode');
+        setStatus({
+          available: false,
+          method: 'standard',
+          gpuSupport: false,
+          expectedSpeedup: '1x',
+          memoryReduction: '1x'
+        });
       }
     } catch (error) {
       console.error('Failed to check Flash Attention status:', error);

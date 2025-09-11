@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GPU Worker Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        h1 {
+            color: #667eea;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #764ba2;
+        }
+        .result {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            border-left: 4px solid #4ade80;
+        }
+        .error {
+            border-left: 4px solid #f87171;
+        }
+        .info {
+            border-left: 4px solid #fbbf24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🖥️ GPU Worker Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>Server Status</h2>
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="getGPUInfo()">Get GPU Info</button>
+        <button onclick="getFlashStatus()">Check Flash Attention</button>
+        <div id="status-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <div class="result info">
+1. First, start the worker server:
+   - Open a terminal/command prompt
+   - Navigate to: C:\WORK\Artifex.AI
+   - Run: python popos_worker_local.py
+   OR
+   - Double-click: start_worker.bat
+
+2. Once the server is running, click the test buttons above
+
+3. You should see:
+   - "Connection successful" if the server is running
+   - GPU information if nvidia-smi is available
+   - Flash Attention status (not available on Windows)
+        </div>
+    </div>
+
+    <script>
+        const SERVER_URL = 'http://localhost:8000';
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('status-result');
+            resultDiv.innerHTML = '<div class="result info">Testing connection...</div>';
+            
+            try {
+                const response = await fetch(SERVER_URL + '/');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div class="result success">✅ Connection successful!\n\n${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Server responded with error: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Connection failed!\n\n${error.message}\n\nMake sure the server is running on ${SERVER_URL}</div>`;
+            }
+        }
+
+        async function getGPUInfo() {
+            const resultDiv = document.getElementById('status-result');
+            resultDiv.innerHTML = '<div class="result info">Fetching GPU info...</div>';
+            
+            try {
+                const response = await fetch(SERVER_URL + '/gpu/info');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.gpus && data.gpus.length > 0) {
+                        resultDiv.innerHTML = `<div class="result success">✅ GPU Info:\n\n${JSON.stringify(data, null, 2)}</div>`;
+                    } else {
+                        resultDiv.innerHTML = `<div class="result info">⚠️ No GPU detected or nvidia-smi not available\n\n${JSON.stringify(data, null, 2)}</div>`;
+                    }
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Failed to get GPU info: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Failed to fetch GPU info!\n\n${error.message}</div>`;
+            }
+        }
+
+        async function getFlashStatus() {
+            const resultDiv = document.getElementById('status-result');
+            resultDiv.innerHTML = '<div class="result info">Checking Flash Attention status...</div>';
+            
+            try {
+                const response = await fetch(SERVER_URL + '/flash/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    const statusText = data.flash_attn || data.xformers ? 'Available' : 'Not Available';
+                    const className = data.flash_attn || data.xformers ? 'success' : 'info';
+                    resultDiv.innerHTML = `<div class="result ${className}">Flash Attention: ${statusText}\n\n${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Failed to check Flash Attention: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Failed to check Flash Attention!\n\n${error.message}</div>`;
+            }
+        }
+
+        // Auto-test on load
+        window.onload = () => {
+            testConnection();
+        };
+    </script>
+</body>
+</html>
