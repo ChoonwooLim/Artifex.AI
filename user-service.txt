@@ -1,0 +1,15 @@
+[Unit]
+Description=PopOS GPU Worker User Service
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 20
+ExecStart=/usr/bin/python3 /home/stevenlim/popos_worker.py
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/home/stevenlim/popos_worker.log
+StandardError=append:/home/stevenlim/popos_worker_error.log
+
+[Install]
+WantedBy=default.target

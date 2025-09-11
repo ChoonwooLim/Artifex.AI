@@ -1,12 +1,17 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu, globalShortcut, clipboard, session } from 'electron';
 import path from 'node:path';
 import { spawn, ChildProcessWithoutNullStreams, execFileSync, exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { existsSync } from 'node:fs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { getAppUpdater } from './updater';
 import { setupSecurityPolicy } from './security';
 import { startOllamaServer, stopOllamaServer } from './ollama';
 import { setupDualGPUHandlers } from './dual-gpu-handler';
+import { registerPopOSHandlers } from './popos-server';
+
+// Promisify exec for async/await usage
+const execAsync = promisify(exec);
 
 let mainWindow: BrowserWindow | null = null;
 let currentJob: ChildProcessWithoutNullStreams | null = null;
@@ -339,17 +344,39 @@ function createWindow() {
         { type: 'separator' },
         {
           label: 'GPU Information',
-          click: () => {
-            const gpuInfo = app.getGPUInfo('complete');
-            gpuInfo.then(info => {
+          click: async () => {
+            try {
+              // Get both Electron GPU info and nvidia-smi info
+              const [electronGpuInfo, nvidiaSmiInfo] = await Promise.all([
+                app.getGPUInfo('complete'),
+                (async () => {
+                  try {
+                    const { stdout } = await execAsync('nvidia-smi --query-gpu=index,pci.bus_id,name,memory.total,memory.free,utilization.gpu,power.draw,power.limit,temperature.gpu --format=csv');
+                    return stdout;
+                  } catch {
+                    return 'nvidia-smi not available';
+                  }
+                })()
+              ]);
+              
+              const details = [
+                '=== Electron GPU Info ===',
+                JSON.stringify(electronGpuInfo, null, 2),
+                '',
+                '=== NVIDIA SMI Info ===',
+                nvidiaSmiInfo
+              ].join('\n');
+              
               dialog.showMessageBox(mainWindow!, {
                 type: 'info',
                 title: 'GPU Information',
-                message: 'GPU Details',
-                detail: JSON.stringify(info, null, 2),
+                message: 'GPU Details (Enhanced)',
+                detail: details,
                 buttons: ['OK']
               });
-            });
+            } catch (error: any) {
+              dialog.showErrorBox('GPU Info Error', error.message);
+            }
           }
         },
         {
@@ -575,6 +602,9 @@ app.whenReady().then(() => {
   
   // Setup performance handlers
   setupPerformanceHandlers();
+  
+  // Setup PopOS Server handlers
+  registerPopOSHandlers();
   
   // Setup Ollama IPC handlers
   ipcMain.handle('start-ollama', async () => {
@@ -962,25 +992,93 @@ ipcMain.handle('wan:openPath', async (_e, targetPath: string) => {
   try { const res = await shell.openPath(targetPath); return { ok: res === '', message: res }; } catch (e: any) { return { ok: false, message: e?.message || String(e) }; }
 });
 
-// GPU info via python (torch)
+// Enhanced GPU info with retry logic and PCIe details
 ipcMain.handle('wan:gpuInfo', async (_e, pythonPath: string) => {
-  try {
-    const code = [
-      'import json, torch, sys',
-      'avail = torch.cuda.is_available()',
-      'name = torch.cuda.get_device_name(0) if avail else ""',
-      'mem = torch.cuda.get_device_properties(0).total_memory if avail else 0',
-      'bf16 = torch.cuda.is_bf16_supported() if avail else False',
-      'cuda_ver = getattr(torch.version, "cuda", None)',
-      'has_flash = False',
-      'try:\n import flash_attn\n has_flash=True\nexcept Exception:\n pass',
-      'print(json.dumps({"available": avail, "name": name, "total_memory": int(mem), "bf16": bf16, "cuda_version": cuda_ver, "flash_attn": has_flash}))'
-    ].join('\n')
-    const out = execFileSync(pythonPath, ['-c', code], { encoding: 'utf-8' });
-    return { ok: true, info: JSON.parse(out) };
-  } catch (e: any) {
-    return { ok: false, message: e?.message || String(e) };
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000; // 2 seconds
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const code = [
+        'import json, torch, sys, subprocess',
+        'import time',
+        'result = {}',
+        '',
+        '# Basic GPU availability check',
+        'avail = torch.cuda.is_available()',
+        'if not avail and attempt < 3:',
+        '    time.sleep(1)',
+        '    torch.cuda.init()',
+        '    avail = torch.cuda.is_available()',
+        '',
+        '# Get GPU info if available',
+        'if avail:',
+        '    name = torch.cuda.get_device_name(0)',
+        '    mem = torch.cuda.get_device_properties(0).total_memory',
+        '    bf16 = torch.cuda.is_bf16_supported()',
+        '    cuda_ver = getattr(torch.version, "cuda", None)',
+        '    count = torch.cuda.device_count()',
+        '    result = {"available": True, "name": name, "total_memory": int(mem), "bf16": bf16, "cuda_version": cuda_ver, "gpu_count": count}',
+        'else:',
+        '    result = {"available": False, "name": "", "total_memory": 0, "bf16": False, "cuda_version": None, "gpu_count": 0}',
+        '',
+        '# Check Flash Attention',
+        'has_flash = False',
+        'try:',
+        '    import flash_attn',
+        '    has_flash = True',
+        'except Exception:',
+        '    pass',
+        'result["flash_attn"] = has_flash',
+        '',
+        '# Get PCIe info via nvidia-smi',
+        'try:',
+        '    nv_out = subprocess.run(["nvidia-smi", "--query-gpu=index,pci.bus_id,name,power.draw,power.limit", "--format=csv,noheader"], capture_output=True, text=True)',
+        '    if nv_out.returncode == 0:',
+        '        lines = nv_out.stdout.strip().split("\\n")',
+        '        pcie_info = []',
+        '        for line in lines:',
+        '            parts = [p.strip() for p in line.split(",")]',
+        '            if len(parts) >= 5:',
+        '                pcie_info.append({',
+        '                    "index": int(parts[0]),',
+        '                    "pci_bus_id": parts[1],',
+        '                    "name": parts[2],',
+        '                    "power_draw": parts[3],',
+        '                    "power_limit": parts[4]',
+        '                })',
+        '        result["pcie_info"] = pcie_info',
+        'except Exception as e:',
+        '    result["pcie_info"] = []',
+        '',
+        'print(json.dumps(result))'
+      ].join('\n').replace('attempt', str(attempt));
+      
+      const out = execFileSync(pythonPath, ['-c', code], { 
+        encoding: 'utf-8',
+        timeout: 10000 // 10 second timeout
+      });
+      
+      const gpuInfo = JSON.parse(out);
+      
+      // If GPU is available or it's the last attempt, return the result
+      if (gpuInfo.available || attempt === MAX_RETRIES) {
+        return { ok: true, info: gpuInfo, attempts: attempt };
+      }
+      
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      
+    } catch (e: any) {
+      if (attempt === MAX_RETRIES) {
+        return { ok: false, message: e?.message || String(e), attempts: attempt };
+      }
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+    }
   }
+  
+  return { ok: false, message: 'Failed to get GPU info after retries', attempts: MAX_RETRIES };
 });
 
 // Speech to Video Generation API

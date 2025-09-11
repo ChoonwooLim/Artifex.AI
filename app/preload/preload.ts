@@ -38,6 +38,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setDualGPUMode: (enabled: boolean) => ipcRenderer.invoke('dual-gpu:set-mode', enabled),
   setFlashAttention: (enabled: boolean) => ipcRenderer.invoke('dual-gpu:set-flash-attention', enabled),
   getLocalGPUInfo: () => ipcRenderer.invoke('dual-gpu:get-local-gpu-info'),
+  // PopOS Server APIs
+  popOSStart: () => ipcRenderer.invoke('popos:start'),
+  popOSStop: () => ipcRenderer.invoke('popos:stop'),
+  popOSStatus: () => ipcRenderer.invoke('popos:status'),
 });
 
 contextBridge.exposeInMainWorld('electron', {

@@ -1,0 +1,24 @@
+[Unit]
+Description=PopOS GPU Worker Server
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=stevenlim
+WorkingDirectory=/home/stevenlim
+ExecStart=/usr/bin/python3 /home/stevenlim/popos_worker.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/stevenlim/popos_worker.log
+StandardError=append:/home/stevenlim/popos_worker_error.log
+
+# 환경 변수
+Environment="PYTHONUNBUFFERED=1"
+
+# 프로세스 제한
+LimitNOFILE=65535
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,19 @@
+[Unit]
+Description=PopOS GPU Worker Server (Safe Mode)
+After=multi-user.target graphical.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=stevenlim
+WorkingDirectory=/home/stevenlim
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/bin/python3 /home/stevenlim/popos_worker.py
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/home/stevenlim/popos_worker.log
+StandardError=append:/home/stevenlim/popos_worker_error.log
+Environment="PYTHONUNBUFFERED=1"
+
+[Install]
+WantedBy=default.target
