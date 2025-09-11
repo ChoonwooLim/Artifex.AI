@@ -163,15 +163,59 @@ export const FlashAttentionToggle: React.FC = () => {
     memoryReduction: '1x'
   });
   const [benchmarkResult, setBenchmarkResult] = useState<BenchmarkResult | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
+  const [poposServerRunning, setPoposServerRunning] = useState(false);
+  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Initial check
     checkFlashAttentionStatus();
-  }, []);
+    
+    // Check PopOS server status from localStorage
+    const checkServerStatus = () => {
+      const serverStatus = localStorage.getItem('popos-server-status');
+      const wasRunning = poposServerRunning;
+      const isRunning = serverStatus === 'running';
+      setPoposServerRunning(isRunning);
+      
+      // If server just started, recheck Flash Attention
+      if (!wasRunning && isRunning) {
+        setTimeout(() => checkFlashAttentionStatus(), 2000);
+      }
+    };
+    
+    // Set up interval for periodic checks
+    const interval = setInterval(() => {
+      checkServerStatus();
+      // Recheck Flash Attention every 30 seconds if server is running
+      if (poposServerRunning) {
+        checkFlashAttentionStatus();
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [poposServerRunning]);
 
   const checkFlashAttentionStatus = async () => {
     setIsChecking(true);
+    setLastCheckTime(new Date());
+    
+    // First check if PopOS server is running
+    const serverStatus = localStorage.getItem('popos-server-status');
+    if (serverStatus !== 'running') {
+      console.log('PopOS server not running, Flash Attention unavailable');
+      setStatus({
+        available: false,
+        method: 'standard',
+        gpuSupport: false,
+        expectedSpeedup: '1x',
+        memoryReduction: '1x'
+      });
+      setIsChecking(false);
+      return;
+    }
+    
     try {
       // Check PopOS worker Flash Attention status with timeout
       const controller = new AbortController();
@@ -331,14 +375,25 @@ export const FlashAttentionToggle: React.FC = () => {
         <InfoBox>
           <InfoRow>
             <span style={{ color: '#fbbf24' }}>
-              ⚠️ Flash Attention requires PopOS worker with RTX 30-series or newer GPU
+              {!poposServerRunning ? 
+                '⚠️ PopOS server is not running. Start the server from PopOS Server tab.' :
+                '⚠️ Flash Attention requires PopOS worker with RTX 30-series or newer GPU'}
             </span>
           </InfoRow>
           <InfoRow>
             <span style={{ fontSize: '12px', opacity: 0.8 }}>
-              Windows does not support Flash Attention due to compiler limitations
+              {!poposServerRunning ?
+                'Flash Attention is only available through the PopOS GPU worker' :
+                'Windows does not support Flash Attention due to compiler limitations'}
             </span>
           </InfoRow>
+          {lastCheckTime && (
+            <InfoRow>
+              <span style={{ fontSize: '11px', opacity: 0.6 }}>
+                Last checked: {lastCheckTime.toLocaleTimeString()}
+              </span>
+            </InfoRow>
+          )}
         </InfoBox>
       )}
 
@@ -349,12 +404,21 @@ export const FlashAttentionToggle: React.FC = () => {
         </SpeedupBadge>
       )}
 
-      <BenchmarkButton
-        onClick={runBenchmark}
-        disabled={!status.available || isBenchmarking}
-      >
-        {isBenchmarking ? 'Running Benchmark...' : 'Run Benchmark'}
-      </BenchmarkButton>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <BenchmarkButton
+          onClick={runBenchmark}
+          disabled={!status.available || isBenchmarking}
+        >
+          {isBenchmarking ? 'Running Benchmark...' : 'Run Benchmark'}
+        </BenchmarkButton>
+        <BenchmarkButton
+          onClick={checkFlashAttentionStatus}
+          disabled={isChecking}
+          style={{ background: 'rgba(255, 255, 255, 0.2)' }}
+        >
+          {isChecking ? 'Checking...' : '🔄 Refresh Status'}
+        </BenchmarkButton>
+      </div>
     </Container>
   );
 };

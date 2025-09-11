@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Attention Status Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .status-row:last-child {
+            border-bottom: none;
+        }
+        .status-label {
+            font-weight: 600;
+        }
+        .status-value {
+            text-align: right;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #4ade80;
+            color: white;
+        }
+        .status-badge.error {
+            background: #f87171;
+        }
+        .status-badge.warning {
+            background: #fbbf24;
+        }
+        button {
+            background: white;
+            color: #764ba2;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .log {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid white;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Flash Attention Status Checker</h1>
+        
+        <div class="status-card">
+            <h2>PopOS Server Status</h2>
+            <div class="status-row">
+                <span class="status-label">Connection:</span>
+                <span class="status-value" id="connection-status">
+                    <span class="status-badge warning">Checking...</span>
+                </span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Server URL:</span>
+                <span class="status-value">http://10.0.0.2:8000</span>
+            </div>
+        </div>
+
+        <div class="status-card" id="flash-status-card" style="display: none;">
+            <h2>Flash Attention Status</h2>
+            <div id="flash-status-content"></div>
+        </div>
+
+        <div class="status-card" id="gpu-status-card" style="display: none;">
+            <h2>GPU Information</h2>
+            <div id="gpu-status-content"></div>
+        </div>
+
+        <div class="button-group">
+            <button onclick="checkStatus()">🔄 Refresh Status</button>
+            <button onclick="runBenchmark()">🚀 Run Benchmark</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+
+        <div class="status-card">
+            <h2>Activity Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logEl.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+            log('Log cleared');
+        }
+
+        async function checkStatus() {
+            log('Checking PopOS server status...');
+            
+            // Check main server
+            try {
+                const response = await fetch('http://10.0.0.2:8000/', {
+                    mode: 'cors',
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('connection-status').innerHTML = 
+                        '<span class="status-badge">Connected</span>';
+                    log(`Server online: ${data.worker}`, 'success');
+                    
+                    // Check Flash Attention
+                    await checkFlashAttention();
+                    
+                    // Check GPU Info
+                    await checkGPUInfo();
+                } else {
+                    throw new Error('Server responded with error');
+                }
+            } catch (error) {
+                document.getElementById('connection-status').innerHTML = 
+                    '<span class="status-badge error">Disconnected</span>';
+                log(`Failed to connect: ${error.message}`, 'error');
+                document.getElementById('flash-status-card').style.display = 'none';
+                document.getElementById('gpu-status-card').style.display = 'none';
+            }
+        }
+
+        async function checkFlashAttention() {
+            log('Checking Flash Attention status...');
+            
+            try {
+                const response = await fetch('http://10.0.0.2:8000/flash/status', {
+                    mode: 'cors',
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const card = document.getElementById('flash-status-card');
+                    const content = document.getElementById('flash-status-content');
+                    
+                    card.style.display = 'block';
+                    
+                    let html = '';
+                    html += `<div class="status-row">
+                        <span class="status-label">Flash Attention:</span>
+                        <span class="status-value">
+                            <span class="status-badge ${data.flash_attn ? '' : 'error'}">
+                                ${data.flash_attn ? 'Available' : 'Not Available'}
+                            </span>
+                        </span>
+                    </div>`;
+                    
+                    html += `<div class="status-row">
+                        <span class="status-label">xFormers:</span>
+                        <span class="status-value">
+                            <span class="status-badge ${data.xformers ? '' : 'error'}">
+                                ${data.xformers ? 'Available' : 'Not Available'}
+                            </span>
+                        </span>
+                    </div>`;
+                    
+                    html += `<div class="status-row">
+                        <span class="status-label">CUDA:</span>
+                        <span class="status-value">
+                            <span class="status-badge ${data.cuda_available ? '' : 'error'}">
+                                ${data.cuda_available ? 'Available' : 'Not Available'}
+                            </span>
+                        </span>
+                    </div>`;
+                    
+                    if (data.details) {
+                        for (const [key, value] of Object.entries(data.details)) {
+                            html += `<div class="status-row">
+                                <span class="status-label">${key}:</span>
+                                <span class="status-value">${value}</span>
+                            </div>`;
+                        }
+                    }
+                    
+                    content.innerHTML = html;
+                    
+                    const status = data.flash_attn ? 'Flash Attention available!' : 
+                                   data.xformers ? 'xFormers available!' : 
+                                   'No acceleration available';
+                    log(status, data.flash_attn || data.xformers ? 'success' : 'error');
+                }
+            } catch (error) {
+                log(`Failed to check Flash Attention: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkGPUInfo() {
+            log('Checking GPU information...');
+            
+            try {
+                const response = await fetch('http://10.0.0.2:8000/gpu/info', {
+                    mode: 'cors',
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const card = document.getElementById('gpu-status-card');
+                    const content = document.getElementById('gpu-status-content');
+                    
+                    card.style.display = 'block';
+                    
+                    let html = '';
+                    if (data.gpus && data.gpus.length > 0) {
+                        const gpu = data.gpus[0];
+                        html += `<div class="status-row">
+                            <span class="status-label">GPU Name:</span>
+                            <span class="status-value">${gpu.name}</span>
+                        </div>`;
+                        
+                        html += `<div class="status-row">
+                            <span class="status-label">Memory Total:</span>
+                            <span class="status-value">${(gpu.memory_total / (1024**3)).toFixed(1)} GB</span>
+                        </div>`;
+                        
+                        html += `<div class="status-row">
+                            <span class="status-label">Memory Free:</span>
+                            <span class="status-value">${(gpu.memory_free / (1024**3)).toFixed(1)} GB</span>
+                        </div>`;
+                        
+                        html += `<div class="status-row">
+                            <span class="status-label">Utilization:</span>
+                            <span class="status-value">${gpu.utilization}%</span>
+                        </div>`;
+                        
+                        log(`GPU detected: ${gpu.name}`, 'success');
+                    } else {
+                        html = '<div class="status-row">No GPU information available</div>';
+                        log('No GPU information available', 'error');
+                    }
+                    
+                    content.innerHTML = html;
+                }
+            } catch (error) {
+                log(`Failed to get GPU info: ${error.message}`, 'error');
+            }
+        }
+
+        async function runBenchmark() {
+            log('Running Flash Attention benchmark...');
+            const button = event.target;
+            button.disabled = true;
+            button.innerHTML = 'Running... <span class="spinner"></span>';
+            
+            try {
+                const response = await fetch('http://10.0.0.2:8000/flash/benchmark', {
+                    mode: 'cors',
+                    signal: AbortSignal.timeout(30000) // 30 second timeout for benchmark
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.benchmarks) {
+                        log('Benchmark completed!', 'success');
+                        
+                        if (data.benchmarks.standard_attention) {
+                            const std = data.benchmarks.standard_attention;
+                            log(`Standard Attention: ${std.time_ms}ms, ${std.memory_gb}GB`);
+                        }
+                        
+                        if (data.benchmarks.flash_attention) {
+                            const flash = data.benchmarks.flash_attention;
+                            if (flash.error) {
+                                log(`Flash Attention: ${flash.error}`, 'error');
+                            } else {
+                                log(`Flash Attention: ${flash.time_ms}ms, ${flash.memory_gb}GB`);
+                                log(`Speedup: ${flash.speedup}x, Memory reduction: ${flash.memory_reduction}x`, 'success');
+                            }
+                        }
+                        
+                        if (data.benchmarks.xformers) {
+                            const xf = data.benchmarks.xformers;
+                            log(`xFormers: ${xf.time_ms}ms, ${xf.memory_gb}GB`);
+                            log(`Speedup: ${xf.speedup}x, Memory reduction: ${xf.memory_reduction}x`, 'success');
+                        }
+                    } else if (data.error) {
+                        log(`Benchmark error: ${data.error}`, 'error');
+                    }
+                }
+            } catch (error) {
+                log(`Failed to run benchmark: ${error.message}`, 'error');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '🚀 Run Benchmark';
+            }
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            log('Flash Attention Status Checker loaded');
+            checkStatus();
+        });
+    </script>
+</body>
+</html>

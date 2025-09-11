@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 
 const Container = styled.div`
-  position: fixed;
-  top: 20px;
-  right: 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  min-width: 300px;
+  width: 100%;
+  max-width: 600px;
+  margin: 20px 0;
 `;
 
 const Title = styled.h3`
@@ -137,12 +135,18 @@ export const PopOSServerControl: React.FC = () => {
   const checkServerStatus = async () => {
     try {
       const result = await window.electronAPI.popOSStatus();
-      setStatus(result.running ? 'running' : 'stopped');
+      const newStatus = result.running ? 'running' : 'stopped';
+      setStatus(newStatus);
+      
+      // Save status to localStorage for other components
+      localStorage.setItem('popos-server-status', newStatus);
+      
       if (result.gpuInfo) {
         setGpuInfo(result.gpuInfo);
       }
     } catch (error) {
       setStatus('stopped');
+      localStorage.setItem('popos-server-status', 'stopped');
       console.error('Failed to check server status:', error);
     }
   };
@@ -155,6 +159,7 @@ export const PopOSServerControl: React.FC = () => {
       const result = await window.electronAPI.popOSStart();
       if (result.success) {
         setStatus('running');
+        localStorage.setItem('popos-server-status', 'running');
         setLogs(logs + result.message + '\n');
         setTimeout(checkServerStatus, 2000);
       } else {
@@ -175,6 +180,7 @@ export const PopOSServerControl: React.FC = () => {
       const result = await window.electronAPI.popOSStop();
       if (result.success) {
         setStatus('stopped');
+        localStorage.setItem('popos-server-status', 'stopped');
         setGpuInfo(null);
         setLogs(logs + result.message + '\n');
       } else {
@@ -196,7 +202,7 @@ export const PopOSServerControl: React.FC = () => {
   return (
     <Container>
       <Title>
-        🖥️ PopOS Server Control
+        🖥️ PopOS GPU Server Control
       </Title>
 
       <StatusRow>

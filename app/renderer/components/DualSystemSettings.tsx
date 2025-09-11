@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import DualGPUToggle from './DualGPUToggle';
 import FlashAttentionToggle from './FlashAttentionToggle';
 import GPUMonitorDashboard from './GPUMonitorDashboard';
+import PopOSServerControl from './PopOSServerControl';
 
 const Container = styled.div`
   padding: 20px;
@@ -178,7 +179,7 @@ const StatusLight = styled.div<{ $color: string }>`
   }
 `;
 
-type TabType = 'overview' | 'settings' | 'monitor' | 'advanced';
+type TabType = 'overview' | 'settings' | 'monitor' | 'advanced' | 'popos';
 
 export const DualSystemSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -188,6 +189,7 @@ export const DualSystemSettings: React.FC = () => {
     workerConnected: false,
     performanceMode: 'balanced'
   });
+  const [flashStatus, setFlashStatus] = useState<string>('Checking...');
 
   const handleBenchmark = async () => {
     try {
@@ -208,6 +210,45 @@ export const DualSystemSettings: React.FC = () => {
       alert(result.success ? 'Worker restarted successfully' : 'Failed to restart worker');
     }
   };
+
+  // Check Flash Attention status when PopOS server state changes
+  React.useEffect(() => {
+    const checkFlashStatus = async () => {
+      const serverStatus = localStorage.getItem('popos-server-status');
+      if (serverStatus === 'running') {
+        try {
+          const response = await fetch('http://10.0.0.2:8000/flash/status');
+          if (response.ok) {
+            const data = await response.json();
+            const hasFlash = data.flash_attn || data.xformers;
+            setSystemStatus(prev => ({ ...prev, flashAttention: hasFlash, workerConnected: true }));
+            if (hasFlash) {
+              setFlashStatus(data.flash_attn ? 'Flash Attention 2' : 'xFormers');
+            } else {
+              setFlashStatus('Not Available');
+            }
+          } else {
+            setSystemStatus(prev => ({ ...prev, flashAttention: false, workerConnected: false }));
+            setFlashStatus('Server Error');
+          }
+        } catch (error) {
+          setSystemStatus(prev => ({ ...prev, flashAttention: false, workerConnected: false }));
+          setFlashStatus('Not Connected');
+        }
+      } else {
+        setSystemStatus(prev => ({ ...prev, flashAttention: false, workerConnected: false }));
+        setFlashStatus('Server Offline');
+      }
+    };
+
+    // Initial check
+    checkFlashStatus();
+
+    // Check periodically
+    const interval = setInterval(checkFlashStatus, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const handleOptimizeSettings = () => {
     // Auto-optimize settings based on current system
@@ -244,6 +285,9 @@ export const DualSystemSettings: React.FC = () => {
         <Tab $active={activeTab === 'advanced'} onClick={() => setActiveTab('advanced')}>
           Advanced
         </Tab>
+        <Tab $active={activeTab === 'popos'} onClick={() => setActiveTab('popos')}>
+          PopOS Server
+        </Tab>
       </TabContainer>
 
       <ContentArea key={activeTab}>
@@ -262,7 +306,7 @@ export const DualSystemSettings: React.FC = () => {
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Flash Attention</InfoLabel>
-                  <InfoValue>{systemStatus.flashAttention ? 'Enabled' : 'Disabled'}</InfoValue>
+                  <InfoValue>{flashStatus}</InfoValue>
                 </InfoItem>
                 <InfoItem>
                   <InfoLabel>Performance Mode</InfoLabel>
@@ -343,6 +387,10 @@ export const DualSystemSettings: React.FC = () => {
               <ActionButton>Reset to Default</ActionButton>
             </ActionButtons>
           </InfoCard>
+        )}
+
+        {activeTab === 'popos' && (
+          <PopOSServerControl />
         )}
       </ContentArea>
     </Container>

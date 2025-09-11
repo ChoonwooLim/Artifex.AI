@@ -64,11 +64,13 @@ class GPUWorkerHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             
-            # Flash Attention status on Linux (actually available!)
+            # Flash Attention status on Linux
             status = {
                 "flash_attn": False,
                 "xformers": False, 
                 "cuda_available": False,
+                "gpu_name": "",
+                "compute_capability": "",
                 "details": {}
             }
             
@@ -76,7 +78,20 @@ class GPUWorkerHandler(BaseHTTPRequestHandler):
             try:
                 import torch
                 status["cuda_available"] = torch.cuda.is_available()
-                status["details"]["cuda_version"] = torch.version.cuda if status["cuda_available"] else None
+                
+                if status["cuda_available"]:
+                    status["gpu_name"] = torch.cuda.get_device_name(0)
+                    major, minor = torch.cuda.get_device_capability(0)
+                    status["compute_capability"] = f"{major}.{minor}"
+                    status["details"]["cuda_version"] = torch.version.cuda
+                    status["details"]["cudnn_version"] = torch.backends.cudnn.version()
+                    
+                    # RTX 3090 has compute capability 8.6, supports Flash Attention
+                    if major >= 8:
+                        status["details"]["gpu_supports_flash"] = True
+                    else:
+                        status["details"]["gpu_supports_flash"] = False
+                
                 status["details"]["pytorch_version"] = torch.__version__
                 
                 # Check for Flash Attention
@@ -84,19 +99,36 @@ class GPUWorkerHandler(BaseHTTPRequestHandler):
                     import flash_attn
                     status["flash_attn"] = True
                     status["details"]["flash_attn"] = f"Version {flash_attn.__version__}"
-                except:
-                    status["details"]["flash_attn"] = "Not installed"
+                except ImportError:
+                    # Try alternative import
+                    try:
+                        from flash_attn import flash_attn_func
+                        status["flash_attn"] = True
+                        status["details"]["flash_attn"] = "Available (functional API)"
+                    except:
+                        status["details"]["flash_attn"] = "Not installed (pip install flash-attn recommended)"
                 
                 # Check for xFormers
                 try:
                     import xformers
+                    import xformers.ops
                     status["xformers"] = True
                     status["details"]["xformers"] = f"Version {xformers.__version__}"
+                except ImportError:
+                    status["details"]["xformers"] = "Not installed (pip install xformers recommended)"
+                
+                # Check for BetterTransformer (alternative)
+                try:
+                    from torch.nn import functional as F
+                    if hasattr(F, 'scaled_dot_product_attention'):
+                        status["details"]["sdpa"] = "Available (PyTorch 2.0+ SDPA)"
                 except:
-                    status["details"]["xformers"] = "Not installed"
+                    pass
                     
-            except:
-                status["details"]["note"] = "PyTorch not installed"
+            except ImportError:
+                status["details"]["note"] = "PyTorch not installed. Install with: pip install torch torchvision torchaudio"
+            except Exception as e:
+                status["details"]["error"] = str(e)
                 
             self.wfile.write(json.dumps(status).encode())
             
@@ -106,21 +138,90 @@ class GPUWorkerHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             
-            # Real benchmark could be implemented here
-            benchmark = {
-                "benchmarks": {
-                    "standard_attention": {
-                        "time_ms": 100.0,
-                        "memory_gb": 8.0
-                    },
-                    "flash_attention": {
-                        "time_ms": 25.0,
-                        "memory_gb": 2.0,
-                        "speedup": 4.0,
-                        "memory_reduction": 4.0
+            # Simple benchmark test
+            benchmark = {"benchmarks": {}}
+            
+            try:
+                import torch
+                import time
+                
+                if torch.cuda.is_available():
+                    # Test standard attention
+                    seq_len = 2048
+                    batch_size = 4
+                    num_heads = 16
+                    head_dim = 64
+                    
+                    device = torch.device("cuda")
+                    query = torch.randn(batch_size, num_heads, seq_len, head_dim, device=device, dtype=torch.float16)
+                    key = torch.randn(batch_size, num_heads, seq_len, head_dim, device=device, dtype=torch.float16)
+                    value = torch.randn(batch_size, num_heads, seq_len, head_dim, device=device, dtype=torch.float16)
+                    
+                    # Standard attention benchmark
+                    torch.cuda.synchronize()
+                    start = time.time()
+                    scores = torch.matmul(query, key.transpose(-2, -1)) / (head_dim ** 0.5)
+                    attn_weights = torch.nn.functional.softmax(scores, dim=-1)
+                    output = torch.matmul(attn_weights, value)
+                    torch.cuda.synchronize()
+                    standard_time = (time.time() - start) * 1000
+                    
+                    # Get memory usage
+                    standard_memory = torch.cuda.max_memory_allocated() / (1024**3)
+                    torch.cuda.reset_peak_memory_stats()
+                    
+                    benchmark["benchmarks"]["standard_attention"] = {
+                        "time_ms": round(standard_time, 2),
+                        "memory_gb": round(standard_memory, 2)
                     }
-                }
-            }
+                    
+                    # Try Flash Attention if available
+                    flash_available = False
+                    flash_time = standard_time
+                    flash_memory = standard_memory
+                    
+                    try:
+                        # Try PyTorch 2.0 SDPA (includes Flash Attention)
+                        torch.cuda.synchronize()
+                        start = time.time()
+                        with torch.backends.cuda.sdp_kernel(enable_flash=True, enable_math=False, enable_mem_efficient=True):
+                            output = torch.nn.functional.scaled_dot_product_attention(query, key, value)
+                        torch.cuda.synchronize()
+                        flash_time = (time.time() - start) * 1000
+                        flash_memory = torch.cuda.max_memory_allocated() / (1024**3)
+                        flash_available = True
+                        method_name = "flash_attention"
+                    except:
+                        # Try xFormers
+                        try:
+                            import xformers.ops as xops
+                            torch.cuda.synchronize()
+                            start = time.time()
+                            output = xops.memory_efficient_attention(query, key, value)
+                            torch.cuda.synchronize()
+                            flash_time = (time.time() - start) * 1000
+                            flash_memory = torch.cuda.max_memory_allocated() / (1024**3)
+                            flash_available = True
+                            method_name = "xformers"
+                        except:
+                            pass
+                    
+                    if flash_available:
+                        benchmark["benchmarks"][method_name] = {
+                            "time_ms": round(flash_time, 2),
+                            "memory_gb": round(flash_memory, 2),
+                            "speedup": round(standard_time / flash_time, 2),
+                            "memory_reduction": round(standard_memory / flash_memory, 2)
+                        }
+                    else:
+                        benchmark["benchmarks"]["flash_attention"] = {
+                            "error": "Not available - install flash-attn or xformers"
+                        }
+                else:
+                    benchmark["error"] = "CUDA not available"
+                    
+            except Exception as e:
+                benchmark["error"] = str(e)
             self.wfile.write(json.dumps(benchmark).encode())
             
         else:

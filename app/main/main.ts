@@ -1168,3 +1168,130 @@ ipcMain.handle('electronAPI:saveVideo', async (_e, videoPath: string) => {
   }
 });
 
+// PopOS Server Management
+let poposServerRunning = false;
+
+ipcMain.handle('popos:start', async () => {
+  try {
+    // Check if server is already running
+    const checkResponse = await fetch('http://10.0.0.2:8000/')
+      .then(res => res.ok)
+      .catch(() => false);
+    
+    if (checkResponse) {
+      poposServerRunning = true;
+      return { success: true, message: 'PopOS server already running' };
+    }
+    
+    // Try to start via SSH (if configured)
+    // This would require SSH key setup
+    return { success: false, message: 'Please start the PopOS server manually on 10.0.0.2' };
+  } catch (error: any) {
+    return { success: false, message: error.message || String(error) };
+  }
+});
+
+ipcMain.handle('popos:stop', async () => {
+  try {
+    poposServerRunning = false;
+    return { success: true, message: 'PopOS server stop requested' };
+  } catch (error: any) {
+    return { success: false, message: error.message || String(error) };
+  }
+});
+
+ipcMain.handle('popos:status', async () => {
+  try {
+    // Check if PopOS server is running
+    const response = await fetch('http://10.0.0.2:8000/')
+      .then(res => res.json())
+      .catch(() => null);
+    
+    if (response && response.status === 'online') {
+      poposServerRunning = true;
+      
+      // Try to get GPU info
+      const gpuResponse = await fetch('http://10.0.0.2:8000/gpu/info')
+        .then(res => res.json())
+        .catch(() => null);
+      
+      return { 
+        running: true, 
+        message: 'PopOS server is online',
+        gpuInfo: gpuResponse?.gpus?.[0] || null
+      };
+    }
+    
+    poposServerRunning = false;
+    return { running: false, message: 'PopOS server is offline' };
+  } catch (error: any) {
+    poposServerRunning = false;
+    return { running: false, message: error.message || String(error) };
+  }
+});
+
+// Dual GPU Management
+let dualGPUMode = false;
+let flashAttentionEnabled = false;
+
+ipcMain.handle('dual-gpu:set-mode', async (_e, enabled: boolean) => {
+  dualGPUMode = enabled;
+  return { success: true, mode: dualGPUMode };
+});
+
+ipcMain.handle('dual-gpu:set-flash-attention', async (_e, enabled: boolean) => {
+  flashAttentionEnabled = enabled;
+  return { success: true, enabled: flashAttentionEnabled };
+});
+
+ipcMain.handle('dual-gpu:get-local-gpu-info', async () => {
+  try {
+    const pythonPath = 'python';
+    const code = `
+import json
+result = {"name": "Unknown", "memory_total": 0, "memory_free": 0, "utilization": 0}
+try:
+    import torch
+    if torch.cuda.is_available():
+        result["name"] = torch.cuda.get_device_name(0)
+        result["memory_total"] = torch.cuda.get_device_properties(0).total_memory
+        result["memory_free"] = result["memory_total"] - torch.cuda.memory_allocated(0)
+        # Can't get utilization from PyTorch directly
+except:
+    pass
+print(json.dumps(result))
+`;
+    
+    const out = execFileSync(pythonPath, ['-c', code], { 
+      encoding: 'utf-8',
+      timeout: 5000
+    });
+    
+    return JSON.parse(out);
+  } catch (error) {
+    return null;
+  }
+});
+
+ipcMain.handle('dual-gpu:check-connection', async () => {
+  try {
+    const response = await fetch('http://10.0.0.2:8000/')
+      .then(res => res.json())
+      .catch(() => null);
+    
+    return { connected: !!response, details: response };
+  } catch (error) {
+    return { connected: false, error: String(error) };
+  }
+});
+
+ipcMain.handle('dual-gpu:restart-worker', async () => {
+  try {
+    // This would restart the PopOS worker
+    // For now, just return a message
+    return { success: false, message: 'Please restart the PopOS worker manually' };
+  } catch (error: any) {
+    return { success: false, message: error.message || String(error) };
+  }
+});
+
